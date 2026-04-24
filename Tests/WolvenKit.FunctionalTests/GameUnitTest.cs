@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using ProtoBuf.Meta;
 using Serilog;
 using Splat.Microsoft.Extensions.DependencyInjection;
 using WolvenKit.Common;
@@ -26,7 +27,7 @@ namespace WolvenKit.FunctionalTests
     public class GameUnitTest
     {
         internal const string s_testResultsDirectory = "_CR2WTestResults";
-        internal static Dictionary<string, IEnumerable<IGameFile>> s_groupedFiles = new();
+        internal static Dictionary<string, IEnumerable<FileEntry>> s_groupedFiles = new();
         internal static IArchiveManager? s_bm;
         internal static bool s_writeToFile;
         private const string s_gameDirectorySetting = "GameDirectory";
@@ -36,12 +37,11 @@ namespace WolvenKit.FunctionalTests
         internal static IHost _host = Host.CreateDefaultBuilder()
                 .ConfigureServices((_, services) =>
                     services
-                        .AddSingleton<ILoggerService, SerilogWrapper>()
-                        .AddSingleton<IProgressService<double>, ProgressService<double>>()
+                        .AddScoped<ILoggerService, SerilogWrapper>()
+                        .AddScoped<IProgressService<double>, ProgressService<double>>()
                         .AddSingleton<IHashService, HashService>()
 
-                        .AddSingleton<IHookService, HookService>()
-                        .AddSingleton<Red4ParserService>()
+                        .AddScoped<Red4ParserService>()
                         .AddScoped<MeshTools>()
                         .AddSingleton<IArchiveManager, ArchiveManager>()
                         .AddSingleton<IModTools, ModTools>()
@@ -112,19 +112,25 @@ namespace WolvenKit.FunctionalTests
 
             if (!Oodle.Load())
             {
-                Assert.Fail($"Could not load {Core.Constants.Oodle}.");
+                Assert.Fail("Could not load oo2ext_7_win64.dll.");
             }
 
             #endregion
 
             //protobuf
-            //RuntimeTypeModel.Default[typeof(IGameArchive)].AddSubType(20, typeof(Archive));
+            RuntimeTypeModel.Default[typeof(IGameArchive)].AddSubType(20, typeof(Archive));
 
+
+            //var hashService = _host.Services.GetRequiredService<IHashService>();
             s_bm = _host.Services.GetRequiredService<IArchiveManager>();
 
-            var exePath = new FileInfo(Path.Combine(gameDirectory.FullName, "bin", "x64", "Cyberpunk2077.exe"));
-            s_bm.LoadGameArchives(exePath);
-            s_groupedFiles = s_bm.GetGroupedFiles(ArchiveManagerScope.Basegame);
+            var archivedir = new DirectoryInfo(Path.Combine(gameDirectory.FullName, "archive", "pc", "content"));
+            s_bm.LoadFromFolder(archivedir);
+            s_groupedFiles = s_bm.GetGroupedFiles();
+
+            var keyes = s_groupedFiles.Keys.ToList();
+            var keystring = string.Join(',', keyes);
+            //Console.WriteLine(keystring);
         }
 
     }

@@ -16,7 +16,7 @@ public class DesktopBridgeHelper
 
     public static bool IsRunningAsPackage()
     {
-        if (IsWindows7OrLower())
+        if (_isWindows7OrLower)
         {
             return false;
         }
@@ -33,27 +33,22 @@ public class DesktopBridgeHelper
         }
     }
 
-    private static bool IsWindows7OrLower() => GetOSVersion() <= 6.1;
-    public static bool IsWindows10OrHigher() => GetOSVersion() >= 10.0;
-
-    public static double GetOSVersion()
+    public static bool IsWindows7OrLower() => _isWindows7OrLower;
+    private static bool _isWindows7OrLower
     {
-        var versionMajor = Environment.OSVersion.Version.Major;
-        var versionMinor = Environment.OSVersion.Version.Minor;
-        var version = versionMajor + ((double)versionMinor / 10);
-        return version;
+        get
+        {
+            var versionMajor = Environment.OSVersion.Version.Major;
+            var versionMinor = Environment.OSVersion.Version.Minor;
+            var version = versionMajor + ((double)versionMinor / 10);
+            return version <= 6.1;
+        }
     }
 
     public static bool PowershellExists()
     {
-        var regval = Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PowerShell\1", "Install", null);
-        var s = regval?.ToString();
-        if (s is null)
-        {
-            return false;
-        }
-
-        if (s.Equals("1"))
+        var regval = Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PowerShell\1", "Install", null).ToString();
+        if (regval.Equals("1"))
         {
             return true;
         }

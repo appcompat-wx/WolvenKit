@@ -1,22 +1,23 @@
 using System.Windows.Input;
 
-namespace WolvenKit.App.Extensions;
-
-public static class ICommandExtensions
+namespace WolvenKit.Functionality.Commands
 {
-    public static void SafeExecute(this ICommand command, object? parameter)
+    public static class ICommandExtensions
     {
-        if (command.CanExecute(parameter))
+        public static void SafeExecute(this ICommand command, object parameter)
         {
-            command.Execute(parameter);
+            if (command.CanExecute(parameter))
+            {
+                command.Execute(parameter);
+            }
         }
-    }
 
-    public static void SafeExecute(this ICommand command)
-    {
-        if (command.CanExecute(null))
+        public static void SafeExecute(this ICommand command)
         {
-            command.Execute(null);
+            if (command.CanExecute(null))
+            {
+                command.Execute(null);
+            }
         }
     }
 }

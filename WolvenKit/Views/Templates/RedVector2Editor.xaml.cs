@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using WolvenKit.RED4.Types;
 
 namespace WolvenKit.Views.Editors
@@ -31,17 +32,25 @@ namespace WolvenKit.Views.Editors
             nameof(Y), typeof(CFloat), typeof(RedVector2Editor), new PropertyMetadata(default(CFloat)));
 
 
-        // Bound to the editor
-        public double XValue
+        public string XText
         {
-            get => X;
-            set => SetValue(XProperty, (CFloat)value);
+            get => GetValueFromXValue();
+            set => SetXValue(value);
         }
 
-        public double YValue
+        public string YText
         {
-            get => Y;
-            set => SetValue(YProperty, (CFloat)value);
+            get => GetValueFromYValue();
+            set => SetYValue(value);
         }
+
+        private void SetXValue(string value) => SetCurrentValue(XProperty, (CFloat)float.Parse(value));
+        private void SetYValue(string value) => SetCurrentValue(YProperty, (CFloat)float.Parse(value));
+
+        private string GetValueFromXValue() => ((float)X).ToString("G9");
+        private string GetValueFromYValue() => ((float)Y).ToString("G9");
+
+
+        private void NumberValidationTextBox(object sender, TextCompositionEventArgs e) => e.Handled = float.TryParse(e.Text, out var _);
     }
 }

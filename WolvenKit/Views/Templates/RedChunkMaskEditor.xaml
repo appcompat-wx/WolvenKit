@@ -6,48 +6,29 @@
     xmlns:local="clr-namespace:WolvenKit.Views.Editors"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:syncfusion="http://schemas.syncfusion.com/wpf"
-    mc:Ignorable="d"
-    d:DesignWidth="400"
     d:DesignHeight="100"
-    FocusManager.FocusedElement="{Binding ElementName=comboboxadv}">
+    d:DesignWidth="400"
+    mc:Ignorable="d">
+
     <Grid DataContext="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:RedChunkMaskEditor}}}">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="{DynamicResource WolvenKitRedEditorHashWidth}" />
+            <ColumnDefinition />
+            <ColumnDefinition Width="150" />
         </Grid.ColumnDefinitions>
-
-        <syncfusion:ComboBoxAdv
-            Name="comboboxadv"
-            MinHeight="{DynamicResource WolvenKitTreeRowHeight}"
-            Padding="{DynamicResource WolvenKitMarginTiny}"
-            Background="#252525"
-            FontSize="{DynamicResource WolvenKitFontSubTitle}"
-            AllowMultiSelect="True"
-            ItemsSource="{Binding BindingCollection,
-                                  Mode=TwoWay,
-                                  UpdateSourceTrigger=PropertyChanged}"
-            SelectedItems="{Binding SelectedItems,
-                                    Mode=TwoWay,
-                                    UpdateSourceTrigger=PropertyChanged}"
-            KeyboardNavigation.TabIndex="1"
-            SelectedValueDelimiter=", " />
-
-        <Border
-            Grid.Column="1"
-            BorderBrush="{StaticResource BorderAlt}"
-            BorderThickness="1,0,0,0" />
-
         <TextBox
             x:Name="TextBox"
             Grid.Column="1"
-            MinHeight="{DynamicResource WolvenKitTreeRowHeight}"
-            Margin="1,0,0,0"
-            Padding="{DynamicResource WolvenKitMarginTiny}"
-            FontSize="{DynamicResource WolvenKitFontSubTitle}"
+            BorderBrush="{StaticResource BorderAlt}"
+            BorderThickness="1,0,0,0"
             PreviewTextInput="NumberValidationTextBox"
-            KeyboardNavigation.TabIndex="7"
-            Text="{Binding Text,
-                           Mode=TwoWay,
-                           UpdateSourceTrigger=PropertyChanged}" />
+            Text="{Binding Text, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <syncfusion:ComboBoxAdv
+            Name="comboboxadv"
+            AllowMultiSelect="True"
+            Background="#252525"
+            ItemsSource="{Binding BindingCollection, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+            SelectedItems="{Binding SelectedItems, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+            SelectedValueDelimiter=", " />
+
     </Grid>
 </UserControl>

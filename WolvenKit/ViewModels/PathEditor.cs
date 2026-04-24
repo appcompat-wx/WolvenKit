@@ -1,8 +1,5 @@
-using System;
-using System.ComponentModel;
 using System.Reflection;
 using System.Windows.Data;
-using System.Windows.Input;
 using Syncfusion.Windows.PropertyGrid;
 
 namespace WolvenKit.Controls
@@ -41,9 +38,6 @@ namespace WolvenKit.Controls
 
         public abstract object Create(PropertyInfo propertyInfo);
         public void Detach(PropertyViewItem property) { }
-        public bool ShouldPropertyGridTryToHandleKeyDown(Key key) => true;
-
-        public object Create(PropertyDescriptor PropertyDescriptor) => throw new System.NotImplementedException();
     }
 
 

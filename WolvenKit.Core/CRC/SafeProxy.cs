@@ -22,7 +22,10 @@ namespace WolvenKit.Core.CRC
 
         #region Constructors
 
-        internal SafeProxy() => Init(Poly);
+        internal SafeProxy()
+        {
+            Init(Poly);
+        }
 
         #endregion Constructors
 
@@ -62,7 +65,7 @@ namespace WolvenKit.Core.CRC
 
             while (--length >= 0)
             {
-                crcLocal = table[(byte)(crcLocal ^ input[offset++])] ^ (crcLocal >> 8);
+                crcLocal = table[(byte)(crcLocal ^ input[offset++])] ^ crcLocal >> 8;
             }
 
             return crcLocal ^ uint.MaxValue;

@@ -1,97 +1,87 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
-using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Threading.Tasks;
-using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using WolvenKit.App.Services;
+using ICSharpCode.AvalonEdit.Document;
+using ICSharpCode.AvalonEdit.Utils;
+using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
+using Splat;
+using WolvenKit.App.Helpers;
 using WolvenKit.Core.Interfaces;
-using WolvenKit.Helpers;
-using WolvenKit.Modkit.Scripting;
+using WolvenKit.Functionality.Services;
 
-namespace WolvenKit.App.ViewModels.Documents;
+namespace WolvenKit.ViewModels.Documents;
 
 public partial class WScriptDocumentViewModel : DocumentViewModel
 {
-    private readonly AppScriptService _scriptService;
+    private readonly ILoggerService _loggerService;
+    private readonly ExtendedScriptService _scriptService;
 
-    public WScriptDocumentViewModel(string path, AppScriptService scriptService) : base(path)
+    private readonly Dictionary<string, object> _hostObjects;
+
+    public WScriptDocumentViewModel(string path) : base(path)
     {
-        _scriptService = scriptService;
-
+        Document = new TextDocument();
         Extension = "wscript";
 
+        _loggerService = Locator.Current.GetService<ILoggerService>();
+        _scriptService = Locator.Current.GetService<ExtendedScriptService>();
+
+        _hostObjects = new() { { "wkit", new WKitUIScripting(_loggerService) } };
         GenerateCompletionData();
 
-        LoadDocument(path);
-
-        _scriptService.PropertyChanged += _scriptService_PropertyChanged;
+        this.WhenAnyValue(x => x._scriptService.IsRunning)
+            .Subscribe(_ =>
+            {
+                RunCommand.NotifyCanExecuteChanged();
+                StopCommand.NotifyCanExecuteChanged();
+            });
     }
 
-    private void _scriptService_PropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if(e.PropertyName == nameof(ScriptService.IsRunning))
-        {
-            RunCommand.NotifyCanExecuteChanged();
-            DebugCommand.NotifyCanExecuteChanged();
-            StopCommand.NotifyCanExecuteChanged();
-        }
-    }
-
-    #region properties
-
-    [ObservableProperty]
-    private string _text = "";
-    
+    [Reactive] public TextDocument Document { get; set; }
     public string Extension { get; }
-    
-    [ObservableProperty]
-    private bool _isReadOnly;
-    
-    [ObservableProperty]
-    private string? _isReadOnlyReason;
-    
-    public Dictionary<string, List<(string name, string? desc)>> CompletionData { get; } = new();
+    [Reactive] public bool IsReadOnly { get; set; }
+    [Reactive] public string IsReadOnlyReason { get; set; }
+    public Dictionary<string, List<(string name, string desc)>> CompletionData { get; } = new();
 
-    [ObservableProperty]
-    private bool _isUIScript;
-    
-    [ObservableProperty]
-    private bool _isNormalScript;
+    [Reactive] public bool IsUIScript { get; set; }
+    [Reactive] public bool IsNormalScript { get; set; }
 
-    #endregion
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private async void Run()
+    {
+        var code = Document.Text;
 
-    #region commands
-
+        await _scriptService.ExecuteAsync(code, _hostObjects, ISettingsManager.GetWScriptDir());
+    }
     private bool CanRun() => !_scriptService.IsRunning;
-    [RelayCommand(CanExecute = nameof(CanRun))]
-    private async Task Run() => await _scriptService.ExecuteAsync(Text);
 
-    [RelayCommand(CanExecute = nameof(CanRun))]
-    private async Task Debug() => await _scriptService.ExecuteAsync(Text, true);
-
-    private bool CanStop() => _scriptService.IsRunning;
     [RelayCommand(CanExecute = nameof(CanStop))]
-    private void Stop() => _scriptService.Stop();
+    private void Stop()
+    {
+        _scriptService.Stop();
+    }
+    private bool CanStop() => _scriptService.IsRunning;
 
     [RelayCommand]
-    private void ReloadUI() => _scriptService.RefreshUIScripts();
-
-    #endregion
-
+    private void ReloadUI()
+    {
+        _scriptService.RefreshUIScripts();
+    }
 
     private void GenerateCompletionData()
     {
         CompletionData.Clear();
 
-        foreach (var (name, instance) in _scriptService.DefaultHostObject)
+        foreach (var (name, instance) in _hostObjects)
         {
-            CompletionData.Add(name, new List<(string name, string? desc)>());
+            CompletionData.Add(name, new List<(string name, string desc)>());
 
-            var methods = new Dictionary<string, string?>();
             foreach (var methodInfo in instance.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public))
             {
                 if (methodInfo.DeclaringType == typeof(object))
@@ -99,50 +89,57 @@ public partial class WScriptDocumentViewModel : DocumentViewModel
                     continue;
                 }
 
-                methods.TryAdd(methodInfo.Name, methodInfo.GetCustomAttribute<DescriptionAttribute>()?.Description);
-            }
-            methods = methods.OrderBy(x => x.Key).ToDictionary(x => x.Key, x => x.Value);
-
-            foreach (var (methodName, desc) in methods)
-            {
-                CompletionData[name].Add((methodName, desc));
+                var descAttr = methodInfo.GetCustomAttribute<DescriptionAttribute>();
+                if (descAttr != null)
+                {
+                    CompletionData[name].Add((methodInfo.Name, descAttr.Description));
+                }
+                else
+                {
+                    CompletionData[name].Add((methodInfo.Name, null));
+                }
             }
         }
     }
 
-    public override async Task Save(object parameter)
+    public override Task<bool> OpenFileAsync(string path)
+    {
+        _isInitialized = false;
+
+        LoadDocument(path);
+
+        ContentId = path;
+        FilePath = path;
+        _isInitialized = true;
+
+        return Task.FromResult(true);
+    }
+
+    public override bool OpenFile(string path)
+    {
+        _isInitialized = false;
+
+        LoadDocument(path);
+
+        ContentId = path;
+        FilePath = path;
+        Header = Path.GetFileName(path);
+        _isInitialized = true;
+
+        return true;
+    }
+
+    public override Task OnSave(object parameter)
     {
         using var fs = new FileStream(FilePath, FileMode.Create, FileAccess.ReadWrite);
         using var bw = new StreamWriter(fs);
-        bw.Write(Text);
+        bw.Write(Document.Text);
         bw.Close();
 
         SetIsDirty(false);
-        LoadDocument(FilePath);
-        LastWriteTime = File.GetLastWriteTime(FilePath);
+        this.OpenFile(FilePath);
 
-        await Task.CompletedTask;
-    }
-
-    protected override void SaveAs(SaveAsParameters saveParams) => throw new NotImplementedException();
-    public override bool Reload(bool force)
-    {
-        if (!File.Exists(FilePath))
-        {
-            return false;
-        }
-
-        if (!force && IsDirty)
-        {
-            return false;
-        }
-
-        Text = File.ReadAllText(FilePath);
-        
-        SetIsDirty(false);
-        LastWriteTime = File.GetLastWriteTime(FilePath);
-
-        return true;
+        return Task.CompletedTask;
     }
 
     private void LoadDocument(string paramFilePath)
@@ -152,6 +149,8 @@ public partial class WScriptDocumentViewModel : DocumentViewModel
             return;
         }
 
+        Document = new TextDocument();
+
         // Check file attributes and set to read-only if file attributes indicate that
         if ((File.GetAttributes(paramFilePath) & FileAttributes.ReadOnly) != 0)
         {
@@ -160,12 +159,19 @@ public partial class WScriptDocumentViewModel : DocumentViewModel
                                "Change the file access permissions or save the file in a different location if you want to edit it.";
         }
 
+        using (var fs = new FileStream(paramFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+        using (var fr = FileReader.OpenStream(fs, Encoding.UTF8))
+        {
+            Document = new TextDocument(fr.ReadToEnd());
+        }
+
         FilePath = paramFilePath;
         GetScriptType(Path.GetFileNameWithoutExtension(paramFilePath));
 
-        Text = File.ReadAllText(FilePath);
-
-        _isInitialized = true;
+        if (string.IsNullOrEmpty(Document.Text))
+        {
+            return;
+        }
     }
 
     private void GetScriptType(string fileName)

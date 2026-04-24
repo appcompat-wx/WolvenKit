@@ -1,207 +1,118 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
+using System.Reactive;
+using System.Reactive.Disposables;
 using CommunityToolkit.Mvvm.Input;
-using WolvenKit.App.Interaction;
-using WolvenKit.App.Services;
-using WolvenKit.App.ViewModels.Scripting;
-using WolvenKit.App.ViewModels.Shell;
-using WolvenKit.Core.Interfaces;
-using WolvenKit.Modkit.Scripting;
+using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
+using Splat;
+using WolvenKit.Functionality.Services;
+using WolvenKit.Interaction;
+using WolvenKit.ViewModels.Dialogs;
+using WolvenKit.ViewModels.Shell;
 
 namespace WolvenKit.App.ViewModels.Dialogs;
 
-public partial class ScriptManagerViewModel : DialogViewModel
+public partial class ScriptManagerViewModel : DialogViewModel, IActivatableViewModel
 {
-    private const string s_scriptExtension = ".wscript";
-
     private readonly AppViewModel _appViewModel;
-    private readonly AppScriptService _scriptService;
-    private readonly ISettingsManager _settingsManager;
-    private readonly ILoggerService _loggerService;
 
+    private const string ScriptExtension = ".wscript";
 
-    public ScriptManagerViewModel(AppViewModel appViewModel, AppScriptService scriptService, ISettingsManager settingsManager, ILoggerService loggerService)
+    public ScriptManagerViewModel(AppViewModel appViewModel = null)
     {
-        _appViewModel = appViewModel;
-        _scriptService = scriptService;
-        _settingsManager = settingsManager;
-        _loggerService = loggerService;
+        _appViewModel = appViewModel ?? Locator.Current.GetService<AppViewModel>();
 
+        OkCommand = ReactiveCommand.Create(() => { _appViewModel.CloseModalCommand.Execute(null); });
+        CancelCommand = ReactiveCommand.Create(() => { _appViewModel.CloseModalCommand.Execute(null); });
+
+        this.WhenActivated(disposables =>
+        {
+            HandleActivation();
+        
+            Disposable
+                .Create(HandleDeactivation)
+                .DisposeWith(disposables);
+        });
+
+        this.WhenAnyValue(x => x.SelectedItem)
+            .Subscribe(x =>
+            {
+                DeleteScriptCommand.NotifyCanExecuteChanged();
+            });
+    }
+
+    public ObservableCollection<string> Scripts { get; } = new();
+    [Reactive] public string SelectedItem { get; set; }
+    [Reactive] public string FileName { get; set; }
+
+    public ViewModelActivator Activator { get; } = new();
+    public override ReactiveCommand<Unit, Unit> OkCommand { get; }
+    public override ReactiveCommand<Unit, Unit> CancelCommand { get; }
+
+    private void HandleActivation()
+    {
         GetScriptFiles();
     }
 
-    public ObservableCollection<ScriptViewModel> Scripts { get; } = new();
-
-    public void AddScript(string fileName, ScriptType type)
+    private void HandleDeactivation()
     {
-        if (string.IsNullOrEmpty(fileName))
-        {
-            return;
-        }
 
-        if (!fileName.EndsWith(s_scriptExtension))
-        {
-            fileName += s_scriptExtension;
-        }
-
-        var scriptPath = Path.Combine(ISettingsManager.GetWScriptDir(), fileName);
-        if (File.Exists(scriptPath))
-        {
-            return;
-        }
-
-        File.Create(scriptPath).Close();
-        GetScriptFiles();
     }
 
     [RelayCommand]
-    private void Ok()
+    private void AddScript()
     {
-        _appViewModel.CloseModalCommand.Execute(null);
-    }
-
-    [RelayCommand]
-    private void Cancel() => _appViewModel.CloseModalCommand.Execute(null);
-
-    [RelayCommand]
-    private async Task UpdateScripts()
-    {
-        await _appViewModel.CheckForScriptUpdatesCommand.ExecuteAsync(null);
-        GetScriptFiles();
-
-        _loggerService.Info("Scripts update complete");
-    }
-
-    public void GetScriptFiles()
-    {
-        _settingsManager.ScriptStatus ??= new();
-
-        Scripts.Clear();
-
-        var files = new List<string>();
-        ScanDir(ScriptSource.System, @"Resources\Scripts");
-        ScanDir(ScriptSource.User, ISettingsManager.GetWScriptDir());
-
-        var keys = _settingsManager.ScriptStatus.Keys.ToList();
-        foreach (var statusKey in keys)
-        {
-            if (!files.Contains(statusKey))
-            {
-                _settingsManager.ScriptStatus.Remove(statusKey);
-            }
-        }
-
-        void ScanDir(ScriptSource scriptSource, string path)
-        {
-            var generalScriptDir = new ScriptDirectoryViewModel(scriptSource, ScriptType.General, _settingsManager);
-            var hookScriptDir = new ScriptDirectoryViewModel(scriptSource, ScriptType.Hook, _settingsManager);
-            var libScriptDir = new ScriptDirectoryViewModel(scriptSource, ScriptType.Lib, _settingsManager);
-            var uiScriptDir = new ScriptDirectoryViewModel(scriptSource, ScriptType.Ui, _settingsManager);
-
-            foreach (var systemScript in _scriptService.GetScripts(path))
-            {
-                files.Add(systemScript.Path);
-
-                switch (systemScript.Type)
-                {
-                    case ScriptType.General:
-                        generalScriptDir.Files.Add(new ScriptFileViewModel(_settingsManager, scriptSource, systemScript));
-                        break;
-                    case ScriptType.Hook:
-                        hookScriptDir.Files.Add(new ScriptFileViewModel(_settingsManager, scriptSource, systemScript));
-                        break;
-                    case ScriptType.Lib:
-                        libScriptDir.Files.Add(new ScriptFileViewModel(_settingsManager, scriptSource, systemScript));
-                        break;
-                    case ScriptType.Ui:
-                        uiScriptDir.Files.Add(new ScriptFileViewModel(_settingsManager, scriptSource, systemScript));
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException();
-                }
-            }
-
-            Scripts.Add(generalScriptDir);
-            Scripts.Add(hookScriptDir);
-            Scripts.Add(libScriptDir);
-            Scripts.Add(uiScriptDir);
-        }
-    }
-
-    public async Task OpenFile(ScriptFileViewModel scriptFile)
-    {
-        if (!File.Exists(scriptFile.Path))
+        if (string.IsNullOrEmpty(FileName))
         {
             return;
         }
 
-        var localFilePath = scriptFile.Path;
-        if (scriptFile.Source == ScriptSource.System)
+        if (!FileName.EndsWith(ScriptExtension))
         {
-            var response = await Interactions.ShowMessageBoxAsync(
-                "Trying to open a system file. Should a local copy be created?",
-                "Open system file",
-                WMessageBoxButtons.YesNo);
-
-            if (response == WMessageBoxResult.No)
-            {
-                return;
-            }
-
-            localFilePath = Path.Combine(ISettingsManager.GetWScriptDir(), Path.GetFileName(scriptFile.Path));
-            if (File.Exists(localFilePath))
-            {
-                response = await Interactions.ShowMessageBoxAsync(
-                    "A copy of this file already exists. Overwrite it?",
-                    "Overwrite file",
-                    WMessageBoxButtons.YesNo);
-
-                if (response == WMessageBoxResult.No)
-                {
-                    return;
-                }
-            }
-
-            File.Copy(scriptFile.Path, localFilePath, true);
+            FileName += ScriptExtension;
         }
 
-        _appViewModel.RequestFileOpen(localFilePath);
-        _appViewModel.CloseModalCommand.Execute(null);
-    }
-
-    public async Task RunFile(ScriptFileViewModel scriptFile)
-    {
-        if (!File.Exists(scriptFile.Path))
-        {
-            return;
-        }
-        var code = File.ReadAllText(scriptFile.Path);
-
-        await _scriptService.ExecuteAsync(code);
-    }
-
-    public async Task DeleteFile(ScriptFileViewModel scriptFile)
-    {
-        if (!File.Exists(scriptFile.Path))
+        if (Scripts.Any(scriptEntry => scriptEntry == FileName))
         {
             return;
         }
 
+        File.Create(Path.Combine(ISettingsManager.GetWScriptDir(), FileName)).Close();
+        Scripts.Add(FileName);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanDeleteScript))]
+    private async void DeleteScript()
+    {
         var response = await Interactions.ShowMessageBoxAsync(
-            $"Are you sure you want to delete \"{scriptFile.Name}\"?",
+            $"Are you sure you want to delete \"{SelectedItem}\"?",
             "Add file",
             WMessageBoxButtons.YesNo);
 
         if (response == WMessageBoxResult.Yes)
         {
-            _scriptService.RemoveFromCache(scriptFile.Path);
-
-            File.Delete(scriptFile.Path);
-            GetScriptFiles();
+            File.Delete(Path.Combine(ISettingsManager.GetWScriptDir(), SelectedItem));
+            Scripts.Remove(SelectedItem);
+            SelectedItem = null;
         }
+    }
+
+    public bool CanDeleteScript() => SelectedItem != null;
+
+    public void GetScriptFiles()
+    {
+        foreach (var file in Directory.GetFiles(ISettingsManager.GetWScriptDir(), $"*{ScriptExtension}"))
+        {
+            Scripts.Add(Path.GetFileName(file));
+        }
+    }
+
+    public void OpenFile()
+    {
+        _appViewModel.RequestFileOpen(Path.Combine(ISettingsManager.GetWScriptDir(), SelectedItem));
+        _appViewModel.CloseModalCommand.Execute(null);
     }
 }

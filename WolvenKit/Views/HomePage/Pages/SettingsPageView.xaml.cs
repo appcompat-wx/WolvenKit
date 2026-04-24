@@ -3,8 +3,8 @@ using System.Windows.Controls;
 using ReactiveUI;
 using Splat;
 using Syncfusion.Windows.PropertyGrid;
-using WolvenKit.App.Services;
 using WolvenKit.Controls;
+using WolvenKit.Functionality.Services;
 using WolvenKit.ViewModels;
 using static WolvenKit.Converters.PropertyGridEditors;
 
@@ -32,7 +32,7 @@ namespace WolvenKit.Views.HomePage.Pages
                 .DisposeWith(disposables);
 
                 this.BindCommand(ViewModel,
-                      viewModel => viewModel.MainViewModel.CloseModalCommand,
+                      viewModel => viewModel.SaveCloseCommand,
                       view => view.SaveCloseButton)
                 .DisposeWith(disposables);
             });
@@ -53,31 +53,22 @@ namespace WolvenKit.Views.HomePage.Pages
                     break;
             }
             // Generate special editors for the properties for which default is not ok
-            if (e.OriginalSource is not PropertyItem { } propertyItem)
+            if (e.OriginalSource is PropertyItem { } propertyItem)
             {
-                return;
-            }
-
-            switch (propertyItem.DisplayName)
-            {
-                case nameof(ISettingsDto.CP77ExecutablePath):
-                    propertyItem.Editor =
-                        new SingleFilePathEditor() { Filters = new PathEditorFilter[] { new("Cyberpunk2077.exe", "*.exe") } };
-                    break;
-                case nameof(ISettingsManager.MaterialRepositoryPath):
-                    propertyItem.Editor = new SingleFolderPathEditor();
-                    break;
-                case nameof(ISettingsManager.ExtraModDirPath):
-                    propertyItem.Editor = new SingleFolderPathEditor();
-                    break;
-                case nameof(ISettingsManager.DefaultEditorDifficultyLevel):
-                    propertyItem.Editor = GetPropertyEditor(propertyItem.GetType());
-                    break;
-                case nameof(ISettingsDto.ThemeAccentString):
-                    propertyItem.Editor = new BrushEditor();
-                    break;
-                default:
-                    break;
+                switch (propertyItem.DisplayName)
+                {
+                    case nameof(ISettingsDto.CP77ExecutablePath):
+                        propertyItem.Editor = new Controls.SingleFilePathEditor() { Filters = new PathEditorFilter[] { new("Cyberpunk2077.exe", "*.exe") } };
+                        break;
+                    case nameof(ISettingsManager.MaterialRepositoryPath):
+                        propertyItem.Editor = new Controls.SingleFolderPathEditor();
+                        break;
+                    case nameof(ISettingsDto.ThemeAccentString):
+                        propertyItem.Editor = new BrushEditor();
+                        break;
+                    default:
+                        break;
+                }
             }
         }
     }

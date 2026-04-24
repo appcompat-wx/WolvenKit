@@ -25,94 +25,95 @@ using System.IO;
 using System.Threading.Tasks;
 using WolvenKit.Core.Interfaces;
 
-namespace WolvenKit.App.Helpers;
-
-public static class GitHelper
+namespace WolvenKit.MVVM.Model
 {
-    #region Methods
-
-    public static async Task<bool> Archive(ILoggerService loggerService, string repoPath, string outputFileName, bool useAttributesFile = true)
+    public static class GitHelper
     {
-        try
+        #region Methods
+
+        public static async Task<bool> Archive(ILoggerService loggerService, string repoPath, string outputFileName, bool useAttributesFile = true)
         {
-            //Directory.CreateDirectory(Path.GetDirectoryName(OutputFileName));
-
-            var command = "git archive --format=zip HEAD --output=\"" + outputFileName + "\"";
-
-            //string command = "git archive master > --output=\"" + OutputFileName + "\"";
-            //command += Environment.NewLine + "tar -rf " + OutputFileName + " .git";
-            if (useAttributesFile)
+            try
             {
-                //command += " --worktree-attributes";
-            }
+                //Directory.CreateDirectory(Path.GetDirectoryName(OutputFileName));
 
-            var exitCode = await ProcessHelper.RunCommandLineAsync(loggerService, repoPath, command);
-            return exitCode == 0;
+                var command = "git archive --format=zip HEAD --output=\"" + outputFileName + "\"";
+
+                //string command = "git archive master > --output=\"" + OutputFileName + "\"";
+                //command += Environment.NewLine + "tar -rf " + OutputFileName + " .git";
+                if (useAttributesFile)
+                {
+                    //command += " --worktree-attributes";
+                }
+
+                var exitCode = await ProcessHelper.RunCommandLineAsync(loggerService, repoPath, command);
+                return exitCode == 0;
+            }
+            catch (Exception ex)
+            {
+                loggerService.Error($"Error creating git archive: {ex.ToString()}");
+            }
+            return false;
         }
-        catch (Exception ex)
+
+        public static async Task<bool> Commit(ILoggerService loggerService, string repoPath, string commitMessage)
         {
-            loggerService.Error($"Error creating git archive: {ex}");
+            try
+            {
+                //await ProcessHelper.RunCommandLineAsync(RepoPath, "git add -A");
+                var exitCode = await ProcessHelper.RunCommandLineAsync(loggerService, repoPath, "git add -A", "git commit -m \"" + commitMessage + "\"");
+                return exitCode == 0;
+            }
+            catch (Exception ex)
+            {
+                loggerService.Error($"Error creating commit for git repository: {ex.ToString()}");
+            }
+            return false;
         }
-        return false;
+
+        public static async Task<bool> InitRepository(ILoggerService loggerService, string RepoPath, string templatedir = "", string AuthorName = "", string Email = "")
+        {
+            try
+            {
+                if (!Directory.Exists(RepoPath))
+                {
+                    Directory.CreateDirectory(RepoPath);
+                }
+
+                var initargs = "git init";
+                if (!string.IsNullOrEmpty(templatedir))
+                {
+                    initargs += $" --template={templatedir}";
+                }
+
+                var commands = new List<string>()
+                {
+                    initargs,
+                    "git config core.longpaths true",
+                    "git config core.autocrlf true",
+                    "git config core.safecrlf false"
+                };
+
+                if (!string.IsNullOrWhiteSpace(AuthorName))
+                {
+                    commands.Add("git config user.name \"" + AuthorName + "\"");
+                }
+
+                if (!string.IsNullOrWhiteSpace(Email))
+                {
+                    commands.Add("git config user.email \"" + Email + "\"");
+                }
+
+                var exitCode = await ProcessHelper.RunCommandLineAsync(loggerService, RepoPath, commands.ToArray());
+                return exitCode == 0;
+            }
+            catch (Exception ex)
+            {
+                loggerService.Error($"Error creating git repository: {ex.ToString()}");
+            }
+            return false;
+        }
+
+        #endregion Methods
     }
-
-    public static async Task<bool> Commit(ILoggerService loggerService, string repoPath, string commitMessage)
-    {
-        try
-        {
-            //await ProcessHelper.RunCommandLineAsync(RepoPath, "git add -A");
-            var exitCode = await ProcessHelper.RunCommandLineAsync(loggerService, repoPath, "git add -A", "git commit -m \"" + commitMessage + "\"");
-            return exitCode == 0;
-        }
-        catch (Exception ex)
-        {
-            loggerService.Error($"Error creating commit for git repository: {ex}");
-        }
-        return false;
-    }
-
-    public static async Task<bool> InitRepository(ILoggerService loggerService, string RepoPath, string templatedir = "", string AuthorName = "", string Email = "")
-    {
-        try
-        {
-            if (!Directory.Exists(RepoPath))
-            {
-                Directory.CreateDirectory(RepoPath);
-            }
-
-            var initargs = "git init";
-            if (!string.IsNullOrEmpty(templatedir))
-            {
-                initargs += $" --template={templatedir}";
-            }
-
-            var commands = new List<string>()
-            {
-                initargs,
-                "git config core.longpaths true",
-                "git config core.autocrlf true",
-                "git config core.safecrlf false"
-            };
-
-            if (!string.IsNullOrWhiteSpace(AuthorName))
-            {
-                commands.Add("git config user.name \"" + AuthorName + "\"");
-            }
-
-            if (!string.IsNullOrWhiteSpace(Email))
-            {
-                commands.Add("git config user.email \"" + Email + "\"");
-            }
-
-            var exitCode = await ProcessHelper.RunCommandLineAsync(loggerService, RepoPath, commands.ToArray());
-            return exitCode == 0;
-        }
-        catch (Exception ex)
-        {
-            loggerService.Error($"Error creating git repository: {ex}");
-        }
-        return false;
-    }
-
-    #endregion Methods
 }

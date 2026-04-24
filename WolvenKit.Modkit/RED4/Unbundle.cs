@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Dasync.Collections;
 using WolvenKit.Common.Extensions;
 using WolvenKit.RED4.Archive;
 
@@ -24,22 +25,17 @@ namespace WolvenKit.Modkit.RED4
         /// <param name="regex"></param>
         /// <param name="decompressBuffers"></param>
         /// <returns></returns>
-        public void ExtractAll(ICyberGameArchive ar, DirectoryInfo outDir, string? pattern = null, string? regex = null, bool decompressBuffers = false)
+        public void ExtractAll(ICyberGameArchive ar, DirectoryInfo outDir, string pattern = "", string regex = "", bool decompressBuffers = false)
         {
             var extractedList = new ConcurrentBag<string>();
             var failedList = new ConcurrentBag<string>();
 
             // check search pattern then regex
             var finalmatches = ar.Files.Values.Cast<FileEntry>();
-
-
             var totalInArchiveCount = ar.Files?.Count ?? 0;
             if (!string.IsNullOrEmpty(pattern))
             {
-                if (ar.Files?.Values is not null)
-                {
-                    finalmatches = ar.Files.Values.Cast<FileEntry>().MatchesWildcard(item => item.FileName, pattern);
-                }
+                finalmatches = ar.Files.Values.Cast<FileEntry>().MatchesWildcard(item => item.FileName, pattern);
             }
 
             if (!string.IsNullOrEmpty(regex))
@@ -70,7 +66,6 @@ namespace WolvenKit.Modkit.RED4
                 _hashService.Contains(item.Key);
             }
 
-            var archive = ar as Archive;
 
             Parallel.ForEach(finalMatchesList, info =>
             {
@@ -88,8 +83,6 @@ namespace WolvenKit.Modkit.RED4
                 Interlocked.Increment(ref progress);
                 _progressService.Report(progress / (float)finalMatchesList.Count);
             });
-
-            archive?.ReleaseFileHandle();
 
             _progressService.Completed();
 
@@ -114,7 +107,7 @@ namespace WolvenKit.Modkit.RED4
         /// <param name="regex"></param>
         /// <param name="decompressBuffers"></param>
         /// <returns></returns>
-        public async Task ExtractAllAsync(ICyberGameArchive ar, DirectoryInfo outDir, string? pattern = null, string? regex = null, bool decompressBuffers = false)
+        public async Task ExtractAllAsync(ICyberGameArchive ar, DirectoryInfo outDir, string pattern = "", string regex = "", bool decompressBuffers = false)
         {
             var extractedList = new ConcurrentBag<string>();
             var failedList = new ConcurrentBag<string>();
@@ -145,16 +138,13 @@ namespace WolvenKit.Modkit.RED4
             var progress = 0;
 
             var bag = new ConcurrentBag<object>();
-            foreach (var info in finalMatchesList)
+            await finalMatchesList.ParallelForEachAsync(async info =>
             {
                 var response = await ExtractSingleAsync(ar, info.NameHash64, outDir, decompressBuffers);
                 bag.Add(response);
                 Interlocked.Increment(ref progress);
                 _progressService.Report(progress / (float)finalMatchesList.Count);
-            };
-
-            var archive = ar as Archive;
-            archive?.ReleaseFileHandle();
+            });
 
             _progressService.Completed();
             var count = bag.Count;

@@ -1,23 +1,22 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reactive.Disposables;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using ReactiveUI;
 using Splat;
-using WolvenKit.App.Services;
-using WolvenKit.App.ViewModels.Shell;
-using WolvenKit.Core.Interfaces;
-using WolvenKit.Views.Templates;
+using WolvenKit.App.Models;
+using WolvenKit.Functionality.Services;
+using WolvenKit.ViewModels.Shell;
 
 namespace WolvenKit.Views.Shell
 {
     public partial class RibbonView : ReactiveUserControl<RibbonViewModel>
     {
         private readonly ISettingsManager _settingsManager;
-        private readonly ILoggerService _loggerService;
-
-        public const string LaunchProfilesString = "Launch Profiles";
+        //private bool _profilesLoaded;
 
         public RibbonView()
         {
@@ -26,7 +25,8 @@ namespace WolvenKit.Views.Shell
             InitializeComponent();
 
             _settingsManager = Locator.Current.GetService<ISettingsManager>();
-            _loggerService = Locator.Current.GetService<ILoggerService>();
+
+            //GetLaunchProfiles();
 
             this.WhenActivated(disposables =>
             {
@@ -51,8 +51,9 @@ namespace WolvenKit.Views.Shell
 
                 // project
 
+
+
                 // pack
-                // pack redmod
                 this.BindCommand(ViewModel,
                         viewModel => viewModel.MainViewModel.PackRedModCommand,
                         view => view.ToolbarPackProjectButton)
@@ -61,24 +62,12 @@ namespace WolvenKit.Views.Shell
                         viewModel => viewModel.MainViewModel.PackInstallRedModCommand,
                         view => view.ToolbarPackInstallRedmodButton)
                     .DisposeWith(disposables);
-
-                // pack legacy mod
-                this.BindCommand(ViewModel,
-                        viewModel => viewModel.MainViewModel.PackModCommand,
-                        view => view.ToolbarPackProjectLegacyButton)
-                    .DisposeWith(disposables);
-                this.BindCommand(ViewModel,
-                        viewModel => viewModel.MainViewModel.PackInstallModCommand,
-                        view => view.ToolbarPackInstallLegacyButton)
-                    .DisposeWith(disposables);
-
-                // HotReload
                 this.BindCommand(ViewModel,
                         viewModel => viewModel.MainViewModel.HotInstallModCommand,
                         view => view.ToolbarHotInstallButton)
                     .DisposeWith(disposables);
 
-                // Launch profiles
+
                 this.BindCommand(ViewModel,
                         viewModel => viewModel.MainViewModel.LaunchOptionsCommand,
                         view => view.LaunchOptionsMenuItem)
@@ -89,78 +78,103 @@ namespace WolvenKit.Views.Shell
                        view => view.LaunchProfileButton)
                    .DisposeWith(disposables);
 
-                this.Bind(ViewModel, vm => vm.LaunchProfileText,
+                this.OneWayBind(ViewModel, vm => vm.LaunchProfileText,
                    view => view.LaunchProfileText.Text)
                    .DisposeWith(disposables);
 
-                // Active project: Disable/Enable buttons
                 this.OneWayBind(ViewModel, vm => vm.MainViewModel.ActiveProject,
                     view => view.LaunchMenu.IsEnabled,
                     p => p is not null)
                     .DisposeWith(disposables);
-
             });
 
-            if (ViewModel is not null && !string.IsNullOrEmpty(_settingsManager.LastLaunchProfile))
+            _settingsManager.WhenAnyValue(x => x.LaunchProfiles).Subscribe(dict =>
             {
-                ViewModel.LaunchProfileText = _settingsManager.LastLaunchProfile;
-            }
+                //if (_profilesLoaded)
+                {
+                    GetLaunchProfiles();
+                }
 
-            _settingsManager.WhenAnyValue(x => x.LaunchProfiles).Subscribe(_ => GetLaunchProfiles());
-
+            });
         }
-
 
         private void GetLaunchProfiles()
         {
+            // add default profiles
+            if (_settingsManager.LaunchProfiles is null || _settingsManager.LaunchProfiles.Count == 0)
+            {
+                using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(@"WolvenKit.Resources.launchprofiles.json");
+                var defaultprofiles = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, LaunchProfile>>(stream, new System.Text.Json.JsonSerializerOptions()
+                {
+                    WriteIndented = true,
+                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+                });
+
+                _settingsManager.LaunchProfiles = defaultprofiles;
+                _settingsManager.Save();
+            }
+
             // unsubscribe
             foreach (var obj in LaunchMenuMainItem.Items)
             {
-                if (obj is not MenuItem { Header: string menuitemHeader } menuitem || menuitemHeader == LaunchProfilesString)
+                if (obj is MenuItem menuitem && menuitem.Header is string menuitemHeader)
                 {
-                    continue;
+                    if (menuitemHeader == "Launch Options")
+                    {
+                        continue;
+                    }
+                    menuitem.Click -= LaunchMenu_MenuItem_Click;
                 }
-
-                menuitem.Click -= LaunchMenu_MenuItem_Click;
             }
-
-            // delete all except for last two (separator and "Launch options")
+            // delete all except for last two
             var cntToRemove = LaunchMenuMainItem.Items.Count - 2;
             for (var i = 0; i < cntToRemove; i++)
             {
                 LaunchMenuMainItem.Items.RemoveAt(0);
             }
 
+
             var count = 0;
-            foreach (var (name, _) in _settingsManager.LaunchProfiles)
+            foreach ((var name, var value) in _settingsManager.LaunchProfiles)
             {
                 MenuItem item = new()
                 {
-                    Header = name,
-                    Icon = new IconBox()
+                    Header = name
                 };
 
-                item.Click += LaunchMenu_MenuItem_Click;
+                // Create image element to set as icon on the menu element
+                //Image icon = new Image();
+                //BitmapImage bmImage = new BitmapImage();
+                //bmImage.BeginInit();
+                //bmImage.UriSource = new Uri(imagePath, UriKind.Absolute);
+                //bmImage.EndInit();
+                //icon.Source = bmImage;
+                //icon.MaxWidth = 25;
+                //item.Icon = icon;
+
+                item.Click += new RoutedEventHandler(LaunchMenu_MenuItem_Click);
 
                 LaunchMenuMainItem.Items.Insert(count, item);
                 count++;
             }
 
-            if (ViewModel is not null && ViewModel.LaunchProfileText is null && _settingsManager.LaunchProfiles.Count > 0)
+            if (_settingsManager.LaunchProfiles is not null || _settingsManager.LaunchProfiles.Count != 0)
             {
                 ViewModel.LaunchProfileText = _settingsManager.LaunchProfiles.First().Key;
             }
+
+            //_profilesLoaded = true;
         }
 
         private void LaunchMenu_MenuItem_Click(object sender, RoutedEventArgs e)
         {
-            if (ViewModel is null || e.Source is not MenuItem { Header: string header })
+            if (e.Source is MenuItem item)
             {
-                return;
+                if (item.Header is string header)
+                {
+                    ViewModel.LaunchProfileText = header;
+                }
             }
-
-            ViewModel.LaunchProfileText = header;
-            _settingsManager.LastLaunchProfile = header;
         }
     }
 }

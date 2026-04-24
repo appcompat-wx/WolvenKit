@@ -78,14 +78,14 @@ public static class Oodle
 
     public const uint KARK = 1263681867; // 0x4b, 0x41, 0x52, 0x4b
 
-    public static bool Load(string? filePath = null)
+    public static bool Load()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             // try get oodle dll from game
-            if (TryCopyOodleLib(filePath))
+            if (TryCopyOodleLib())
             {
-                var result = OodleLib.Load(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Constants.Oodle));
+                var result = OodleLib.Load(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "oo2ext_7_win64.dll"));
                 if (result)
                 {
                     CompressionSettings.Get().CompressionLevel = CompressionLevel.Optimal2;
@@ -256,27 +256,6 @@ public static class Oodle
 
         return result;
     }
-    
-    public static unsafe long Decompress(byte* inputBuffer, long inputBufferSize, byte* outputBuffer, long outputBufferSize)
-    {
-        int result;
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            result = CompressionSettings.Get().UseOodle
-                ? OodleLib.OodleLZ_Decompress(inputBuffer, inputBufferSize, outputBuffer, outputBufferSize)
-                : KrakenNative.Decompress(inputBuffer, inputBufferSize, outputBuffer, outputBufferSize);
-        }
-        else
-        {
-            result = RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
-                ? KrakenNative.Decompress(inputBuffer, inputBufferSize, outputBuffer, outputBufferSize)
-                : RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
-                    ? KrakenNative.Decompress(inputBuffer, inputBufferSize, outputBuffer, outputBufferSize)
-                    : throw new NotImplementedException();
-        }
-
-        return result;
-    }
 
     /// <summary>
     /// Decompresses and copies a segment of zsize bytes from a stream to another stream
@@ -394,23 +373,18 @@ public static class Oodle
     /// <returns></returns>
     public static int GetCompressedBufferSizeNeeded(int count)
     {
-        var n = (((count + 0x3ffff + ((uint)((count + 0x3ffff) >> 0x1f) & 0x3ffff)) >> 0x12) * 0x112) + count;
+        var n = (((count + 0x3ffff + ((uint)((count + 0x3ffff) >> 0x3f) & 0x3ffff))
+                 >> 0x12) * 0x112) + count;
         //var n  = OodleNative.GetCompressedBufferSizeNeeded((long)count);
         return (int)n;
     }
 
-    private static bool TryCopyOodleLib(string? filePath)
+    private static bool TryCopyOodleLib()
     {
         var localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var destFileName = Path.Combine(localData, Constants.Oodle);
+        var destFileName = Path.Combine(localData, "oo2ext_7_win64.dll");
         if (File.Exists(destFileName))
         {
-            return true;
-        }
-
-        if (File.Exists(filePath) && filePath.Contains(Constants.Oodle))
-        {
-            File.Copy(filePath, destFileName);
             return true;
         }
 
@@ -430,7 +404,7 @@ public static class Oodle
         }
 
         // copy oodle dll
-        var oodleInfo = new FileInfo(Path.Combine(cp77BinDir, Constants.Oodle));
+        var oodleInfo = new FileInfo(Path.Combine(cp77BinDir, "oo2ext_7_win64.dll"));
         if (!oodleInfo.Exists)
         {
             return false;
@@ -475,63 +449,64 @@ public static class Oodle
 
         try
         {
-            var subkeys = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(uninstallkey)?.GetSubKeyNames();
-            if (subkeys is not null)
+            Parallel.ForEach(Microsoft.Win32.Registry.LocalMachine.OpenSubKey(uninstallkey)?.GetSubKeyNames(), item =>
             {
-                Parallel.ForEach(subkeys, item =>
+                var programName = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(uninstallkey + item)
+                    ?.GetValue("DisplayName");
+                var installLocation = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(uninstallkey + item)
+                    ?.GetValue("InstallLocation");
+                if (programName != null && installLocation != null)
                 {
-                    var programName = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(uninstallkey + item)?.GetValue("DisplayName");
-                    var installLocation = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(uninstallkey + item)?.GetValue("InstallLocation");
-                    if (programName?.ToString() is string n && installLocation?.ToString() is string l && n.Contains(gameName))
+                    if (programName.ToString().Contains(gameName) ||
+                        programName.ToString().Contains(gameName))
                     {
-                        exePath = Directory.GetFiles(l, exeName, SearchOption.AllDirectories).First();
+                        exePath = Directory.GetFiles(installLocation.ToString(), exeName,
+                            SearchOption.AllDirectories).First();
                     }
+                }
 
-                    strDelegate(exePath);
-                });
-            }
-
-            var uninstallkeys = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(uninstallkey)?.GetSubKeyNames();
-            if (uninstallkeys is not null)
+                strDelegate(exePath);
+            });
+            Parallel.ForEach(Microsoft.Win32.Registry.LocalMachine.OpenSubKey(uninstallkey2)?.GetSubKeyNames(), item =>
             {
-                Parallel.ForEach(uninstallkeys, item =>
+                var programName = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(uninstallkey2 + item)
+                    ?.GetValue("DisplayName");
+                var installLocation = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(uninstallkey2 + item)
+                    ?.GetValue("InstallLocation");
+                if (programName != null && installLocation != null)
                 {
-                    var programName = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(uninstallkey2 + item)?.GetValue("DisplayName");
-                    var installLocation = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(uninstallkey2 + item)?.GetValue("InstallLocation");
-                    if (programName?.ToString() is string n && installLocation?.ToString() is string l)
+                    if (programName.ToString().Contains(gameName) ||
+                        programName.ToString().Contains(gameName))
                     {
-                        if (n.Contains(gameName) || n.Contains(gameName))
+                        if (Directory.Exists(installLocation.ToString()))
                         {
-                            if (Directory.Exists(installLocation.ToString()))
-                            {
-                                exePath = Directory.GetFiles(l, exeName, SearchOption.AllDirectories).First();
-                            }
+                            exePath = Directory.GetFiles(installLocation.ToString(), exeName,
+                                SearchOption.AllDirectories).First();
                         }
                     }
+                }
 
-                    strDelegate(exePath);
-                });
-            }
+                strDelegate(exePath);
+            });
 
-            var fi = new FileInfo(cp77exe);
-            if (fi is not null && fi.Exists && fi.Directory is not null)
+            if (File.Exists(cp77exe))
             {
-                cp77BinDir = fi.Directory.FullName;
+                cp77BinDir = new FileInfo(cp77exe).Directory.FullName;
             }
         }
         catch (Exception)
         {
-            return "";
+            return null;
         }
 
         if (string.IsNullOrEmpty(cp77BinDir))
         {
-            return "";
+            return null;
         }
 
         if (!File.Exists(Path.Combine(cp77BinDir, "Cyberpunk2077.exe")))
         {
-            return "";
+            return null;
         }
 #endif
 #pragma warning restore CA1416

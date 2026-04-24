@@ -1,46 +1,76 @@
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Reactive;
 using System.Reactive.Disposables;
 using System.Threading.Tasks;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using WolvenKit.App.Models.ProjectManagement.Project;
-using WolvenKit.App.Services;
-using WolvenKit.App.ViewModels.Shell;
-using WolvenKit.Core.Extensions;
+using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
+using Splat;
+using WolvenKit.Functionality.Services;
+using WolvenKit.ProjectManagement.Project;
+using WolvenKit.ViewModels.Dialogs;
+using WolvenKit.ViewModels.Shell;
 
 namespace WolvenKit.App.ViewModels.Dialogs;
 
-public partial class ProjectSettingsDialogViewModel : DialogViewModel
+public class ProjectSettingsDialogViewModel : DialogViewModel, IActivatableViewModel
 {
     private readonly IProjectManager _projectManager;
     private readonly IPluginService _pluginService;
     private readonly AppViewModel _appViewModel;
 
-    [ObservableProperty]
-    private Cp77Project _project;
+
+    public ViewModelActivator Activator { get; } = new();
+    public override ReactiveCommand<Unit, Unit> OkCommand { get; }
+    public override ReactiveCommand<Unit, Unit> CancelCommand { get; }
+
+
+    [Reactive] public Cp77Project Project { get; set; }
 
 
     public bool IsRedModInstalled => _pluginService.IsInstalled(EPlugin.redmod);
 
-    public ProjectSettingsDialogViewModel(IProjectManager projectManager, IPluginService pluginService, AppViewModel appViewModel)
+    public ProjectSettingsDialogViewModel(IProjectManager projectManager = null, IPluginService pluginService = null, AppViewModel appViewModel = null)
     {
-        _projectManager = projectManager;
-        _pluginService = pluginService;
-        _appViewModel = appViewModel;
+        _projectManager = projectManager ?? Locator.Current.GetService<IProjectManager>();
+        _pluginService = pluginService ?? Locator.Current.GetService<IPluginService>();
+        _appViewModel = appViewModel ?? Locator.Current.GetService<AppViewModel>();
 
-        _project = _projectManager.ActiveProject.NotNull();
+        OkCommand = ReactiveCommand.CreateFromTask(ExecuteOk);
+        CancelCommand = ReactiveCommand.Create(ExecuteCancel);
+
+        this.WhenActivated(disposables =>
+        {
+            HandleActivation();
+
+            Disposable
+                .Create(HandleDeactivation)
+                .DisposeWith(disposables);
+        });
     }
 
-    [RelayCommand]
-    private async Task Ok()
+    private void HandleActivation()
+    {
+        if (_projectManager.ActiveProject is not Cp77Project project)
+        {
+            throw new Exception();
+        }
+
+        Project = project;
+    }
+
+    private void HandleDeactivation()
+    {
+
+    }
+
+    private async Task<Unit> ExecuteOk()
     {
         await _projectManager.SaveAsync();
 
         _appViewModel.CloseModalCommand.Execute(null);
+
+        return Unit.Default;
     }
 
-    [RelayCommand]
-    private void Cancel() => _appViewModel.CloseModalCommand.Execute(null);
+    private void ExecuteCancel() => _appViewModel.CloseModalCommand.Execute(null);
 }

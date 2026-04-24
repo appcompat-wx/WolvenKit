@@ -17,9 +17,12 @@ namespace WolvenKit.Core.Murmur3
         private const uint s_n = 0xE6546B64;
 
 
-        public static uint Hash(string source, uint seed, Encoding? encoding = null)
+        public static uint Hash(string source, uint seed, Encoding encoding = null)
         {
-            encoding ??= Encoding.ASCII;
+            if (encoding is null)
+            {
+                encoding = Encoding.ASCII;
+            }
 
             return Hash(new ReadOnlySpan<byte>(encoding.GetBytes(source)), seed);
         }
@@ -41,7 +44,7 @@ namespace WolvenKit.Core.Murmur3
                     k = BinaryPrimitives.ReadUInt32BigEndian(source);
                 }
 
-                source = source[sizeof(uint)..];
+                source = source.Slice(sizeof(uint));
 
                 k *= s_c1;
                 k = Rotl(k, s_r1);
@@ -74,14 +77,20 @@ namespace WolvenKit.Core.Murmur3
             return val;
         }
 
-        public static byte[] HashBytes(string source, uint seed, Encoding? encoding = null)
+        public static byte[] HashBytes(string source, uint seed, Encoding encoding = null)
         {
-            encoding ??= Encoding.ASCII;
+            if (encoding is null)
+            {
+                encoding = Encoding.ASCII;
+            }
 
             return HashBytes(new ReadOnlySpan<byte>(encoding.GetBytes(source)), seed);
         }
 
-        public static byte[] HashBytes(ReadOnlySpan<byte> source, uint seed) => BitConverter.GetBytes(Hash(source, seed));
+        public static byte[] HashBytes(ReadOnlySpan<byte> source, uint seed)
+        {
+            return BitConverter.GetBytes(Hash(source, seed));
+        }
 
         private static uint Rotl(uint x, byte r) => (uint)((int)x << r) | (x >> (32 - r));
     }

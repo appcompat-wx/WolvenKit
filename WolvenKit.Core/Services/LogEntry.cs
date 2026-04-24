@@ -1,9 +1,10 @@
 using System;
-using CommunityToolkit.Mvvm.ComponentModel;
+using DynamicData;
+using ReactiveUI;
 
 namespace WolvenKit.Common.Services
 {
-    public class LogEntry : ObservableObject
+    public class LogEntry : ReactiveObject
     {
         public LogEntry(string message, Logtype level, DateTime timeStamp)
         {

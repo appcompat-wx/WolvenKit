@@ -2,9 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using CommunityToolkit.Mvvm.Input;
+using Prism.Commands;
 using WolvenKit.RED4.Types;
 using WolvenKit.Views.Documents;
 
@@ -18,7 +19,7 @@ namespace WolvenKit.Functionality.Layout.inkWidgets
         public string Target;
     }
 
-    public partial class inkControlAnimation
+    public class inkControlAnimation
     {
         public string Name => Sequence.Name;
         public inkanimSequence Sequence { get; set; }
@@ -30,6 +31,9 @@ namespace WolvenKit.Functionality.Layout.inkWidgets
         {
             Sequence = seq;
             WidgetView = wv;
+
+            PlayCommand = new DelegateCommand(Play);
+            StopCommand = new DelegateCommand(Stop);
 
             if (Sequence.Targets.Count != Sequence.Definitions.Count)
             {
@@ -301,11 +305,13 @@ namespace WolvenKit.Functionality.Layout.inkWidgets
             }
         }
 
-        [RelayCommand]
-        private void Play() => Storyboard.Begin(WidgetView, true);
+        public ICommand PlayCommand { get; set; }
+        //public bool CanPlay() => Storyboard != null && Storyboard.GetCurrentState() == ClockState.Stopped;
+        public void Play() => Storyboard.Begin(WidgetView, true);
 
-        [RelayCommand]
-        private void Stop() => Storyboard.Stop(WidgetView);
+        public ICommand StopCommand { get; set; }
+        //public bool CanStop() => Storyboard != null && Storyboard.GetCurrentState() != ClockState.Stopped;
+        public void Stop() => Storyboard.Stop(WidgetView);
 
         public static DoubleKeyFrame ToDoubleKeyframe(Enums.inkanimInterpolationType? type, Enums.inkanimInterpolationMode? mode, float value, float keyframe) => type switch
         {

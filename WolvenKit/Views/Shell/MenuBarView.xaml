@@ -1,1175 +1,811 @@
 <reactiveUi:ReactiveUserControl
     x:Class="WolvenKit.Views.Shell.MenuBarView"
-    x:TypeArguments="shell:MenuBarViewModel"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:others="clr-namespace:WolvenKit.Views.Others"
     xmlns:reactiveUi="http://reactiveui.net"
-    xmlns:shell="clr-namespace:WolvenKit.App.ViewModels.Shell;assembly=WolvenKit.App"
-    xmlns:local="clr-namespace:WolvenKit.Views.Templates"
+    xmlns:shared="clr-namespace:Syncfusion.Windows.Shared;assembly=Syncfusion.Shared.WPF"
+    xmlns:shell="clr-namespace:WolvenKit.ViewModels.Shell;assembly=WolvenKit.App"
+    x:TypeArguments="shell:MenuBarViewModel"
     mc:Ignorable="d">
+
+    <!--  Resources  -->
     <UserControl.Resources>
         <ResourceDictionary>
-            <Style TargetType="{x:Type local:IconBox}">
-                <Setter Property="Opacity" Value="1.0" />
-
-                <Style.Triggers>
-                    <DataTrigger
-                        Binding="{Binding Path=IsEnabled,
-                                          RelativeSource={RelativeSource AncestorType={x:Type MenuItem}}}"
-                        Value="False">
-                        <Setter Property="Opacity" Value="0.5" />
-                    </DataTrigger>
-                </Style.Triggers>
-            </Style>
+            <shared:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <!-- Main Grid -->
+    <!--  Main Grid  -->
     <Grid>
-        <others:ScriptableMenu
-            Background="Transparent"
-            ScriptingName="MenuBarMain">
-            <!-- Home -->
+        <Grid.Resources>
+            <Style x:Key="WolvenKitToolBarButtonIcon" TargetType="{x:Type iconPacks:PackIconControlBase}">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding Path=IsEnabled, RelativeSource={RelativeSource AncestorType={x:Type Button}}}" Value="False">
+                        <Setter Property="Foreground" Value="{StaticResource Border}" />
+                        <Setter Property="Opacity" Value="0.5" />
+                    </DataTrigger>
+                    <MultiDataTrigger>
+                        <MultiDataTrigger.Conditions>
+                            <Condition Binding="{Binding Foreground, RelativeSource={RelativeSource Self}}" Value="{StaticResource Border}" />
+                            <Condition Binding="{Binding Path=IsEnabled, RelativeSource={RelativeSource AncestorType={x:Type Button}}}" Value="False" />
+                        </MultiDataTrigger.Conditions>
+                        <Setter Property="Opacity" Value="1.0" />
+                    </MultiDataTrigger>
+                </Style.Triggers>
+            </Style>
+            <Style
+                x:Key="WolvenKitToolBarButtonIconEraser"
+                BasedOn="{StaticResource WolvenKitToolBarButtonIcon}"
+                TargetType="{x:Type iconPacks:PackIconControlBase}">
+                <Setter Property="Foreground" Value="{StaticResource ContentBackgroundAlt}" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding Path=IsMouseOver, RelativeSource={RelativeSource AncestorType={x:Type UIElement}, AncestorLevel=4}}" Value="True">
+                        <Setter Property="Foreground" Value="{StaticResource ContentBackgroundAlt5}" />
+                        <Setter Property="Opacity" Value="1.0" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding Path=IsPressed, RelativeSource={RelativeSource AncestorType={x:Type Button}, AncestorLevel=4}}" Value="True">
+                        <Setter Property="Foreground" Value="{StaticResource ContentBackground}" />
+                        <Setter Property="Opacity" Value="1.0" />
+                    </DataTrigger>
+                    <MultiDataTrigger>
+                        <MultiDataTrigger.Conditions>
+                            <Condition Binding="{Binding Path=IsMouseOver, RelativeSource={RelativeSource AncestorType={x:Type UIElement}, AncestorLevel=4}}" Value="True" />
+                            <Condition Binding="{Binding Path=IsPressed, RelativeSource={RelativeSource AncestorType={x:Type Button}, AncestorLevel=4}}" Value="True" />
+                        </MultiDataTrigger.Conditions>
+                        <Setter Property="Foreground" Value="{StaticResource ContentBackgroundAlt}" />
+                        <Setter Property="Opacity" Value="1.0" />
+                    </MultiDataTrigger>
+                    <DataTrigger Binding="{Binding Path=IsEnabled, RelativeSource={RelativeSource AncestorType={x:Type Button}}}" Value="False">
+                        <Setter Property="Foreground" Value="{StaticResource ContentBackgroundAlt2}" />
+                        <Setter Property="Opacity" Value="1.0" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+            <Style x:Key="WolvenKitToolBarButtonText" TargetType="TextBlock">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding Path=IsEnabled, RelativeSource={RelativeSource AncestorType={x:Type UIElement}, AncestorLevel=4}}" Value="False">
+                        <Setter Property="Foreground" Value="{StaticResource Border}" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style x:Key="{x:Static ToolBar.ButtonStyleKey}" TargetType="{x:Type Button}">
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Border.Background" Value="Transparent" />
+                <Setter Property="Height" Value="22" />
+                <Setter Property="Border.Padding" Value="5,0" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type Button}">
+                            <Border
+                                Padding="{TemplateBinding Border.Padding}"
+                                Background="{TemplateBinding Border.Background}"
+                                CornerRadius="3">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{StaticResource ContentBackgroundAlt5}" />
+                    </Trigger>
+                    <Trigger Property="IsPressed" Value="True">
+                        <Setter Property="Background" Value="{StaticResource ContentBackground}" />
+                    </Trigger>
+                    <MultiTrigger>
+                        <MultiTrigger.Conditions>
+                            <Condition Property="IsMouseOver" Value="True" />
+                            <Condition Property="IsPressed" Value="True" />
+                        </MultiTrigger.Conditions>
+                        <Setter Property="Border.Background" Value="{StaticResource ContentBackgroundAlt}" />
+                    </MultiTrigger>
+                </Style.Triggers>
+                <Style.Resources>
+                    <Style BasedOn="{StaticResource WolvenKitToolBarButtonIcon}" TargetType="{x:Type iconPacks:PackIconControlBase}">
+                        <Setter Property="Visibility" Value="{Binding IsChecked, ElementName=toolbarIcons, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    </Style>
+                    <Style BasedOn="{StaticResource WolvenKitToolBarButtonText}" TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="{Binding IsChecked, ElementName=toolbarLabels, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    </Style>
+                </Style.Resources>
+            </Style>
+            <Style x:Key="{x:Static ToolBar.ToggleButtonStyleKey}" TargetType="{x:Type ToggleButton}">
+                <Setter Property="Border.Background" Value="{StaticResource ContentBackgroundAlt4}" />
+                <Setter Property="Height" Value="22" />
+                <Setter Property="Border.Padding" Value="5,0" />
+                <Setter Property="Border.Margin" Value="2,0,0,0" />
+                <Setter Property="Border.BorderBrush" Value="{StaticResource ContentBackground}" />
+                <Setter Property="Border.BorderThickness" Value="0,0,0,1" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type ToggleButton}">
+                            <Border
+                                Margin="{TemplateBinding Border.Margin}"
+                                Padding="{TemplateBinding Border.Padding}"
+                                Background="{TemplateBinding Border.Background}"
+                                BorderBrush="{TemplateBinding Border.BorderBrush}"
+                                BorderThickness="{TemplateBinding Border.BorderThickness}"
+                                CornerRadius="3">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Border.Background" Value="{StaticResource ContentBackgroundAlt5}" />
+                        <Setter Property="Border.BorderBrush" Value="{StaticResource ContentBackground}" />
+                        <Setter Property="Border.BorderThickness" Value="0,0,0,1" />
+                    </Trigger>
+                    <Trigger Property="IsChecked" Value="True">
+                        <Setter Property="Border.Background" Value="{StaticResource ContentBackground}" />
+                        <Setter Property="Border.BorderBrush" Value="Black" />
+                        <Setter Property="Border.BorderThickness" Value="0,1,0,0" />
+                    </Trigger>
+                    <MultiTrigger>
+                        <MultiTrigger.Conditions>
+                            <Condition Property="IsMouseOver" Value="True" />
+                            <Condition Property="IsChecked" Value="True" />
+                        </MultiTrigger.Conditions>
+                        <Setter Property="Border.Background" Value="{StaticResource ContentBackgroundAlt}" />
+                        <Setter Property="Border.BorderBrush" Value="{StaticResource ContentBackground}" />
+                        <Setter Property="Border.BorderThickness" Value="0,1,0,0" />
+                    </MultiTrigger>
+                </Style.Triggers>
+                <Style.Resources>
+                    <Style BasedOn="{StaticResource WolvenKitToolBarButtonIcon}" TargetType="{x:Type iconPacks:PackIconControlBase}">
+                        <Setter Property="Visibility" Value="{Binding IsChecked, ElementName=toolbarIcons, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    </Style>
+                    <Style BasedOn="{StaticResource WolvenKitToolBarButtonText}" TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="{Binding IsChecked, ElementName=toolbarLabels, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    </Style>
+                </Style.Resources>
+            </Style>
+        </Grid.Resources>
+
+        <others:ScriptableMenu Background="Transparent" ScriptingName="MenuBarMain">
+            <!--  Home  -->
             <MenuItem
                 x:Name="HomeButton"
                 Margin="1,0"
                 Padding="12,5"
-                FontSize="{DynamicResource WolvenKitFontSubTitle}"
                 Header="HOME" />
 
-            <!-- File -->
+            <!--  File  -->
             <MenuItem
-                Padding="{DynamicResource WolvenKitMarginHorizontal}"
-                FontSize="{DynamicResource WolvenKitFontSubTitle}"
+                Margin="1,0"
+                Padding="12,0"
                 Header="File">
                 <MenuItem
                     x:Name="MenuItemNewFile"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="New File"
                     ToolTip="New File">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
-                            Kind="NewFile"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitYellow}" />
+                        <Grid Margin="6,0">
+                            <iconPacks:PackIconMaterial
+                                Padding="0,0,2,2"
+                                Foreground="{StaticResource WolvenKitYellow}"
+                                Kind="File"
+                                Style="{StaticResource WolvenKitToolBarButtonIcon}" />
+                            <iconPacks:PackIconForkAwesome
+                                Padding="6,6,-3,-3"
+                                Kind="Circle"
+                                Style="{StaticResource WolvenKitToolBarButtonIconEraser}" />
+                            <iconPacks:PackIconForkAwesome
+                                Padding="8,8,-1,-1"
+                                BorderBrush="Black"
+                                Kind="PlusCircle"
+                                Style="{StaticResource WolvenKitToolBarButtonIcon}" />
+                        </Grid>
                     </MenuItem.Icon>
                 </MenuItem>
-
-                <MenuItem
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Header="Add files..."
-                    ToolTip="New complex file">
-                    <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Empty"
-                            Size="{DynamicResource WolvenKitIconTiny}" />
-                    </MenuItem.Icon>
-
-                    <!-- Photo mode files -->
-                    <MenuItem
-                        x:Name="MenuItemNewPhotoModeFiles"
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Header="Add Photo Mode files"
-                        ToolTip="Adds .app, .ent, .inkatlas, .xbm, and .yaml">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Codicons"
-                                Kind="NewFile"
-                                Size="{DynamicResource WolvenKitIconTiny}"
-                                Foreground="{StaticResource WolvenKitYellow}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-
-                    <!-- .inkatlas -->
-                    <MenuItem
-                        x:Name="MenuItemGenerateInkatlas"
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Header="Generate .inkatlas"
-                        ToolTip="Adds an .inkatlas file from a folder and generates the textures for it">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Codicons"
-                                Kind="TerminalTmux"
-                                Size="{DynamicResource WolvenKitIconTiny}"
-                                Foreground="{StaticResource WolvenKitYellow}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-
-
-                    <Separator />
-
-                    <!-- Minimal Quest Files -->
-                    <MenuItem
-                        x:Name="MenuItemGenerateMinimalQuest"
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Header="Generate quest files"
-                        ToolTip="Adds minimal quest structure and files">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Codicons"
-                                Kind="SymbolEvent"
-                                Size="{DynamicResource WolvenKitIconTiny}"
-                                Foreground="{StaticResource WolvenKitYellow}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-
-                    <!-- Radio -->
-                    <MenuItem
-                        x:Name="MenuItemAddOrEditRadio"
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Header="RadioEXT station"
-                        ToolTip="Add or edit radio station">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Material"
-                                Kind="Radio"
-                                Size="{DynamicResource WolvenKitIconTiny}"
-                                Foreground="{StaticResource WolvenKitYellow}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-
-                    <Separator />
-
-                    <!-- Generate WB/AMM prop -->
-                    <MenuItem
-                        x:Name="MenuItemGeneratePropFile"
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Header="Create a prop"
-                        ToolTip="Generates a prop for WorldBuilder and AMM">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Material"
-                                Kind="ToyBrickPlus"
-                                Size="{DynamicResource WolvenKitIconTiny}"
-                                Foreground="{StaticResource WolvenKitYellow}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-
-                    <!-- WorldBuilder prop file -->
-                    <MenuItem
-                        x:Name="MenuItemRegisterWorldbuilderFiles"
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Header="Create WorldBuilder asset file"
-                        ToolTip="Generates prop file for WorldBuilder">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Codicons"
-                                Kind="Globe"
-                                Size="{DynamicResource WolvenKitIconTiny}"
-                                Foreground="{StaticResource WolvenKitYellow}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-
-                    <Separator />
-
-                    <!-- ArchiveXL item files -->
-                    <MenuItem
-                        x:Name="MenuItemAddAxlItemFiles"
-                        Margin="2,1"
-                        Header="ArchiveXL item"
-                        ToolTip="Adds all necessary files for a new ArchiveXL item">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Material"
-                                Kind="TshirtCrew"
-                                Size="{DynamicResource WolvenKitIconTiny}"
-                                Foreground="{StaticResource WolvenKitYellow}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-
-                    <Separator />
-
-                    <!-- ArchiveXL item files -->
-                    <MenuItem
-                        x:Name="MenuItemAddPlayerHead"
-                        Margin="2,1"
-                        Header="Player Head"
-                        ToolTip="Adds all necessary files for a custom player head sculpt">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Material"
-                                Kind="Head"
-                                Size="{DynamicResource WolvenKitIconTiny}"
-                                Foreground="{StaticResource WolvenKitYellow}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-
-                </MenuItem>
-
-                <MenuItem
-                    x:Name="Import"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Header="Import">
-                    <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Empty"
-                            Size="{DynamicResource WolvenKitIconTiny}" />
-                    </MenuItem.Icon>
-
-                    <MenuItem
-                        x:Name="MenuItemImportArchive"
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Header="Import .archive"
-                        ToolTip="Import an .archive file for analysis">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Material"
-                                Kind="ArchivePlusOutline"
-                                Size="{DynamicResource WolvenKitIconTiny}"
-                                Foreground="{StaticResource WolvenKitTan}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-
-                    <MenuItem
-                        x:Name="ToolbarImportEntitySpawnerButton"
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Header="Import object spawner .json">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Material"
-                                Kind="TextBoxPlusOutline"
-                                Size="{DynamicResource WolvenKitIconTiny}"
-                                Foreground="{StaticResource WolvenKitCyan}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-                </MenuItem>
-
                 <MenuItem
                     x:Name="MenuItemSave"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="Save"
                     ToolTip="Save File">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
-                            Kind="Save"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitCyan}" />
+                        <iconPacks:PackIconMaterial
+                            Margin="6,0"
+                            Padding="0,1,0,1"
+                            Foreground="{StaticResource WolvenKitCyan}"
+                            Kind="ContentSave"
+                            Style="{StaticResource WolvenKitToolBarButtonIcon}" />
                     </MenuItem.Icon>
                 </MenuItem>
-
                 <MenuItem
                     x:Name="MenuItemSaveAs"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="Save As"
                     ToolTip="Save File">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
-                            Kind="SaveAs"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitCyan}" />
+                        <iconPacks:PackIconMaterial
+                            Margin="6,0"
+                            Padding="0,1,0,1"
+                            Foreground="{StaticResource WolvenKitCyan}"
+                            Kind="ContentSaveEdit"
+                            Style="{StaticResource WolvenKitToolBarButtonIcon}" />
                     </MenuItem.Icon>
                 </MenuItem>
-
                 <MenuItem
                     x:Name="MenuItemSaveAll"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="Save All"
                     ToolTip="Save All Files">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
-                            Kind="SaveAll"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitCyan}" />
+                        <iconPacks:PackIconMaterial
+                            Margin="6,0"
+                            Padding="0,1,0,1"
+                            Foreground="{StaticResource WolvenKitCyan}"
+                            Kind="ContentSaveAll"
+                            Style="{StaticResource WolvenKitToolBarButtonIcon}" />
                     </MenuItem.Icon>
                 </MenuItem>
-            </MenuItem>
 
-            <!-- Project -->
-            <MenuItem
-                Padding="{DynamicResource WolvenKitMarginHorizontal}"
-                FontSize="{DynamicResource WolvenKitFontSubTitle}"
-                Header="Project">
+                <Separator Margin="0,10" />
 
                 <MenuItem
                     x:Name="MenuItemNewProject"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="New Project"
                     ToolTip="Create new WolvenKit mod project">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
-                            Kind="NewFolder"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitTan}" />
+                        <Grid Margin="6,0">
+                            <iconPacks:PackIconMaterialDesign
+                                Padding="0,0,2,2"
+                                Foreground="{StaticResource WolvenKitTan}"
+                                Kind="Folder"
+                                Style="{StaticResource WolvenKitToolBarButtonIcon}" />
+                            <iconPacks:PackIconForkAwesome
+                                Padding="6,6,-3,-3"
+                                Kind="Circle"
+                                Style="{StaticResource WolvenKitToolBarButtonIconEraser}" />
+                            <iconPacks:PackIconForkAwesome
+                                Padding="8,8,-1,-1"
+                                Kind="PlusCircle"
+                                Style="{StaticResource WolvenKitToolBarButtonIcon}" />
+                        </Grid>
                     </MenuItem.Icon>
                 </MenuItem>
-
                 <MenuItem
                     x:Name="MenuItemOpenProject"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="Open Project"
                     ToolTip="Open existing WolvenKit mod project">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
-                            Kind="FolderOpened"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitTan}" />
-                    </MenuItem.Icon>
-                </MenuItem>
-
-                <Separator />
-
-                <MenuItem
-                    x:Name="ToolbarProjectSettingsButton"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Header="Project Configuration">
-                    <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
-                            Kind="SettingsGear"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="White" />
-                    </MenuItem.Icon>
-                </MenuItem>
-
-                <Separator />
-
-                <!-- Project: Clean up -->
-                <MenuItem
-                    x:Name="ToolbarCleanupButton"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Header="Clean up">
-                    <MenuItem.Icon>
-                        <local:IconBox IconPack="Empty" />
-                    </MenuItem.Icon>
-
-                    <MenuItem
-                        x:Name="ToolbarProjectFindUnusedFilesButton"
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Header="Scan for unused files">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Material"
-                                Kind="TextSearchVariant"
-                                Size="{DynamicResource WolvenKitIconTiny}"
-                                Foreground="White" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-
-                    <Separator />
-
-                    <MenuItem
-                        x:Name="ToolbarProjectDeleteEmptyFoldersButton"
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Header="Delete empty folders">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Material"
-                                Kind="FolderRemove"
-                                Size="{DynamicResource WolvenKitIconTiny}"
-                                Foreground="{StaticResource WolvenKitRed}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-
-                    <MenuItem
-                        x:Name="ToolbarProjectDeleteEmptyMeshesButton"
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Header="Delete empty meshes">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Material"
-                                Kind="DeleteForever"
-                                Size="{DynamicResource WolvenKitIconTiny}"
-                                Foreground="{StaticResource WolvenKitRed}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-
-                </MenuItem>
-
-                <!-- Project: utilities -->
-                <MenuItem
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Header="Utilities">
-                    <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Empty"
-                            Size="{DynamicResource WolvenKitIconTiny}" />
-                    </MenuItem.Icon>
-
-                    <MenuItem
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Click="GenerateItemCodes_Click"
-                        Header="Generate item codes from .yaml">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Material"
-                                Kind="FormatList"
-                                Size="{DynamicResource WolvenKitIconTiny}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-
-                    <MenuItem
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Click="AddItemsToVendor_Click"
-                        Header="Add items to store/vendor">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Material"
-                                Kind="FormatList"
-                                Size="{DynamicResource WolvenKitIconTiny}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-
-                </MenuItem>
-
-                <Separator />
-
-                <MenuItem
-                    x:Name="ToolbarProjectScanFilePathsButton"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Header="Scan for broken file references">
-                    <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Material"
-                            Kind="FileSearchOutline"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="White" />
-                    </MenuItem.Icon>
-                </MenuItem>
-
-                <MenuItem
-                    x:Name="ToolbarProjectScanForBrokenFilesButton"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    ToolTip="Find broken CR2W files (such as corrupt textures) that will not be caught by other checks"
-                    Header="Scan for broken files">
-                    <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Material"
-                            Kind="FileSearchOutline"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="White" />
-                    </MenuItem.Icon>
-                </MenuItem>
-
-                <Separator />
-                <MenuItem
-                    x:Name="ToolbarProjectRunFileValidationButton"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Header="Run File Validation on the entire project">
-                    <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
-                            Kind="PlayCircle"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="White" />
+                        <iconPacks:PackIconForkAwesome
+                            Margin="6,0"
+                            Foreground="{StaticResource WolvenKitTan}"
+                            Kind="FolderOpen"
+                            Style="{StaticResource WolvenKitToolBarButtonIcon}" />
                     </MenuItem.Icon>
                 </MenuItem>
             </MenuItem>
 
-            <!-- Build -->
+            <!--  Edit  -->
             <MenuItem
-                Padding="{DynamicResource WolvenKitMarginHorizontal}"
-                FontSize="{DynamicResource WolvenKitFontSubTitle}"
+                Margin="1,0"
+                Padding="12,0"
+                Header="Edit">
+                <MenuItem
+                    x:Name="ToolbarSettingsButton"
+                    Margin="2,1"
+                    Header="Settings">
+                    <MenuItem.Icon>
+                        <iconPacks:PackIconCodicons
+                            Margin="6,0"
+                            Kind="Settings"
+                            Style="{StaticResource WolvenKitToolBarButtonIcon}" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem
+                    x:Name="ToolbarProjectSettingsButton"
+                    Margin="2,1"
+                    Header="Project Configuration">
+                    <MenuItem.Icon>
+                        <iconPacks:PackIconCodicons
+                            Margin="6,0"
+                            Kind="SettingsGear"
+                            Style="{StaticResource WolvenKitToolBarButtonIcon}" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator />
+                <MenuItem
+                    x:Name="ToolbarOpenLogsButton"
+                    Margin="2,1"
+                    Header="Open Logs Folder">
+                    <MenuItem.Icon>
+                        <iconPacks:PackIconCodicons
+                            Margin="6,0"
+                            Foreground="{StaticResource WolvenKitYellow}"
+                            Kind="FolderOpened"
+                            Style="{StaticResource WolvenKitToolBarButtonIcon}" />
+                    </MenuItem.Icon>
+                </MenuItem>
+            </MenuItem>
+
+            <!--  Build  -->
+            <MenuItem
+                Margin="1,0"
+                Padding="12,0"
                 Header="Build">
-                <!-- Pack -->
+                
+                <!--  Pack  -->
                 <MenuItem
                     x:Name="MenuItemPack"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="Pack Project"
                     ToolTip="Pack mod and create zip file">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Material"
-                            Kind="ArchiveCheckOutline"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitPurple}" />
+                        <Grid Margin="6,0">
+                            <iconPacks:PackIconForkAwesome
+                                Padding="0,0,2,2"
+                                Foreground="{StaticResource WolvenKitRed}"
+                                Kind="Archive"
+                                Style="{StaticResource WolvenKitToolBarButtonIcon}" />
+                        </Grid>
                     </MenuItem.Icon>
                 </MenuItem>
-
-                <!-- Pack as REDmod -->
+                <!--  Pack as REDmod  -->
                 <MenuItem
                     x:Name="MenuItemPackRedmod"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Visibility="{Binding EnableRedmodCommands,
-                                         Converter={StaticResource BooleanToVisibilityConverter}}"
+                    Margin="2,1"
                     Header="Pack as REDmod"
                     ToolTip="Pack as REDmod and create zip file">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Material"
-                            Kind="ArchiveCheckOutline"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitPurple}" />
+                        <Grid Margin="6,0">
+                            <iconPacks:PackIconForkAwesome
+                                Padding="0,0,2,2"
+                                Foreground="{StaticResource WolvenKitRed}"
+                                Kind="Archive"
+                                Style="{StaticResource WolvenKitToolBarButtonIcon}" />
+                        </Grid>
                     </MenuItem.Icon>
                 </MenuItem>
 
                 <Separator />
 
-                <!-- Install -->
+                <!--  Install  -->
                 <MenuItem
                     x:Name="MenuItemPackInstallProject"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="Install"
                     ToolTip="Pack mod &amp; install to game">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Material"
-                            Kind="ArchiveSyncOutline"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitPurple}" />
+                        <Grid Margin="6,0">
+                            <iconPacks:PackIconForkAwesome
+                                Padding="0,0,2,2"
+                                Foreground="{StaticResource WolvenKitRed}"
+                                Kind="Archive"
+                                Style="{StaticResource WolvenKitToolBarButtonIcon}" />
+                            <iconPacks:PackIconForkAwesome
+                                Padding="7,7,-2,-2"
+                                Kind="ArrowRight"
+                                Style="{StaticResource WolvenKitToolBarButtonIconEraser}" />
+                            <iconPacks:PackIconCodicons
+                                Padding="9,8,-1,-1"
+                                Kind="ArrowRight"
+                                Style="{StaticResource WolvenKitToolBarButtonIcon}" />
+                        </Grid>
                     </MenuItem.Icon>
                 </MenuItem>
-
-                <!-- Install as REDmod -->
+                <!--  Install as REDmod  -->
                 <MenuItem
                     x:Name="MenuItemPackInstallRedmodProject"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Visibility="{Binding EnableRedmodCommands,
-                                         Converter={StaticResource BooleanToVisibilityConverter}}"
+                    Margin="2,1"
                     Header="Install as REDmod"
                     ToolTip="Pack as REDmod &amp; install to game">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Material"
-                            Kind="ArchiveSyncOutline"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitPurple}" />
+                        <Grid Margin="6,0">
+                            <iconPacks:PackIconForkAwesome
+                                Padding="0,0,2,2"
+                                Foreground="{StaticResource WolvenKitRed}"
+                                Kind="Archive"
+                                Style="{StaticResource WolvenKitToolBarButtonIcon}" />
+                            <iconPacks:PackIconForkAwesome
+                                Padding="7,7,-2,-2"
+                                Kind="ArrowRight"
+                                Style="{StaticResource WolvenKitToolBarButtonIconEraser}" />
+                            <iconPacks:PackIconCodicons
+                                Padding="9,8,-1,-1"
+                                Kind="ArrowRight"
+                                Style="{StaticResource WolvenKitToolBarButtonIcon}" />
+                        </Grid>
                     </MenuItem.Icon>
                 </MenuItem>
 
                 <Separator />
 
-                <!-- Install & Launch Game -->
+                <!--  Install & Launch Game  -->
                 <MenuItem
                     x:Name="ToolbarPackInstallLaunchButton"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="Install &amp; Launch Game">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
+                        <iconPacks:PackIconCodicons
+                            Margin="6,0"
+                            Foreground="{StaticResource WolvenKitYellow}"
                             Kind="RunAll"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitYellow}" />
+                            Style="{StaticResource WolvenKitToolBarButtonIcon}" />
                     </MenuItem.Icon>
                 </MenuItem>
 
-                <!-- Install as REDmod & Launch Game -->
+                <!--  Install as REDmod & Launch Game  -->
                 <MenuItem
                     x:Name="ToolbarPackInstallRedmodLaunchButton"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Visibility="{Binding EnableRedmodCommands,
-                                         Converter={StaticResource BooleanToVisibilityConverter}}"
+                    Margin="2,1"
                     Header="Install as REDmod &amp; Launch Game">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
+                        <iconPacks:PackIconCodicons
+                            Margin="6,0"
+                            Foreground="{StaticResource WolvenKitYellow}"
                             Kind="RunAll"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitYellow}" />
+                            Style="{StaticResource WolvenKitToolBarButtonIcon}" />
                     </MenuItem.Icon>
                 </MenuItem>
 
                 <Separator />
 
-                <!-- Clean All -->
+                <!--  Clean All  -->
                 <MenuItem
                     x:Name="MenuItemClean"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="Clean All"
                     ToolTip="Clean project's packed directory completely">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Material"
-                            Kind="DeleteOutline"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitRed}" />
+                        <Grid Margin="6,0">
+                            <iconPacks:PackIconForkAwesome
+                                Padding="0,0,2,2"
+                                Foreground="{StaticResource WolvenKitRed}"
+                                Kind="Trash"
+                                Style="{StaticResource WolvenKitToolBarButtonIcon}" />
+                        </Grid>
                     </MenuItem.Icon>
                 </MenuItem>
 
                 <Separator />
 
-                <!-- Hot Reload -->
+                <!--  Hot Reload  -->
                 <MenuItem
                     x:Name="MenuItemHotInstallProject"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="Hot Reload"
                     ToolTip="Pack mod &amp; install directly to hot directory">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Material"
-                            Kind="Fire"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{DynamicResource WolvenKitRed}" />
+                        <Grid Margin="6,0">
+                            <iconPacks:PackIconForkAwesome
+                                Padding="0,1,0,1"
+                                Foreground="#f44b56"
+                                Kind="Fire"
+                                Style="{StaticResource WolvenKitToolBarButtonIcon}" />
+                        </Grid>
+
                     </MenuItem.Icon>
                 </MenuItem>
 
                 <Separator />
 
-                <!-- Launch Profiles -->
+                <!--  Launch Profiles  -->
                 <MenuItem
                     x:Name="MenuItemLaunchProfiles"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="Launch Profiles"
                     ToolTip="Open launch profile settings">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
-                            Kind="SettingsGear"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="White" />
+                        <Grid Margin="6,0">
+                            <iconPacks:PackIconForkAwesome
+                                Padding="0,0,2,2"
+                                Kind="Cog"
+                                Style="{StaticResource WolvenKitToolBarButtonIcon}" />
+                        </Grid>
                     </MenuItem.Icon>
                 </MenuItem>
+
             </MenuItem>
 
-            <!-- View -->
+            <!--  View  -->
             <MenuItem
-                Padding="{DynamicResource WolvenKitMarginHorizontal}"
-                FontSize="{DynamicResource WolvenKitFontSubTitle}"
+                Margin="1,0"
+                Padding="12,0"
                 Header="View">
                 <MenuItem
                     x:Name="ProjectExplorerCheckbox"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Padding="{DynamicResource WolvenKitMarginSmallVertical}"
+                    Margin="2,1"
                     Header="Project Explorer"
                     IsCheckable="True" />
-
                 <MenuItem
                     x:Name="AssetBrowserCheckbox"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Padding="{DynamicResource WolvenKitMarginSmallVertical}"
+                    Margin="2,1"
                     Header="Asset Browser"
                     IsCheckable="True" />
-
+                <MenuItem
+                    x:Name="PropertiesCheckbox"
+                    Margin="2,1"
+                    Header="Properties"
+                    IsCheckable="True" />
+                <MenuItem
+                    x:Name="LogCheckbox"
+                    Margin="2,1"
+                    Header="Log"
+                    IsCheckable="True" />
                 <MenuItem
                     x:Name="TweakBrowserCheckbox"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Padding="{DynamicResource WolvenKitMarginSmallVertical}"
+                    Margin="2,1"
                     Header="Tweak Browser"
                     IsCheckable="True" />
-
                 <MenuItem
                     x:Name="LocKeyBrowserCheckbox"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Padding="{DynamicResource WolvenKitMarginSmallVertical}"
+                    Margin="2,1"
                     Header="LocKey Browser"
                     IsCheckable="True" />
 
-                <MenuItem
-                    x:Name="PropertiesCheckbox"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Padding="{DynamicResource WolvenKitMarginSmallVertical}"
-                    Header="Properties"
-                    IsCheckable="True" />
+                <Separator Margin="0,10" />
 
                 <MenuItem
-                    x:Name="LogCheckbox"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Padding="{DynamicResource WolvenKitMarginSmallVertical}"
-                    Header="Log"
-                    IsCheckable="True" />
-
-                <Separator />
-
-                <MenuItem
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="Show File Preview"
                     IsCheckable="True"
-                    IsChecked="{Binding SettingsManager.ShowFilePreview,
-                                        Mode=TwoWay,
-                                        UpdateSourceTrigger=PropertyChanged}"
+                    IsChecked="{Binding SettingsManager.ShowFilePreview, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                     ToolTip="Toggle interactive file preview for improved performance" />
-                <!-- <MenuItem x:Name="toolbarLabels" Header="Show Toolbar Labels" IsCheckable="True" IsChecked="True" Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}" />-->
+                <!-- <MenuItem
+                    x:Name="toolbarLabels"
+                    Header="Show Toolbar Labels"
+                    IsCheckable="True"
+                    IsChecked="True" />-->
 
-                <Separator />
+                <Separator Margin="0,10" />
 
-                <!-- sub-menu "default layout" -->
                 <MenuItem
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Header="Layout">
-
+                    Margin="2,1"
+                    Click="SaveLayoutToProject"
+                    Header="Save Layout to Project">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Empty"
-                            Size="{DynamicResource WolvenKitIconTiny}" />
+                        <iconPacks:PackIconMaterialDesign Padding="7,1,-2,0" Kind="Save" />
                     </MenuItem.Icon>
-
-
-                    <MenuItem
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        IsEnabled="{Binding HasOpenProject}"
-                        Click="SaveLayoutToProject"
-                        Header="Save Layout to Project">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Codicons"
-                                Kind="Save"
-                                Size="{DynamicResource WolvenKitIconTiny}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-
-                    <MenuItem
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        IsEnabled="{Binding HasOpenProject}"
-                        Click="SetLayoutToDefault"
-                        Header="Reset Project Layout">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="MaterialDesign"
-                                Kind="Refresh"
-                                Size="{DynamicResource WolvenKitIconTiny}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-
-                    <Separator />
-
-                    <MenuItem
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Click="SaveCurrentLayoutToDefault"
-                        Header="Save Default Layout">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="MaterialDesign"
-                                Kind="Save"
-                                Size="{DynamicResource WolvenKitIconTiny}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-
-                    <MenuItem
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Click="ResetDefaultLayout"
-                        Header="Reset Default Layout">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="MaterialDesign"
-                                Kind="ResetTv"
-                                Size="{DynamicResource WolvenKitIconTiny}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
                 </MenuItem>
+                <MenuItem
+                    Margin="2,1"
+                    Click="SetLayoutToDefault"
+                    Header="Reset Layout">
+                    <MenuItem.Icon>
+                        <iconPacks:PackIconMaterialDesign Padding="7,1,-2,0" Kind="Refresh" />
+                    </MenuItem.Icon>
+                </MenuItem>
+
             </MenuItem>
 
-            <!-- Tools -->
+            <!--  Tools  -->
             <MenuItem
-                Padding="{DynamicResource WolvenKitMarginHorizontal}"
-                FontSize="{DynamicResource WolvenKitFontSubTitle}"
+                Margin="1,0"
+                Padding="12,0"
                 Header="Tools">
-
                 <MenuItem
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Click="GenerateMaterialRepoButton_Click"
                     Header="Depot Generator">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="ForkAwesome"
+                        <iconPacks:PackIconForkAwesome
+                            Margin="6,0"
+                            Foreground="{StaticResource WolvenKitTan}"
                             Kind="List"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitTan}" />
+                            Style="{StaticResource WolvenKitToolBarButtonIcon}" />
                     </MenuItem.Icon>
                 </MenuItem>
-
                 <MenuItem
                     x:Name="MenuItemShowSoundModdingTool"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="Sound Modding Tool">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="ForkAwesome"
-                            Kind="VolumeUp"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitCyan}" />
+                        <iconPacks:PackIconForkAwesome
+                            Margin="6,0"
+                            Padding="0,1,0,1"
+                            Foreground="{StaticResource WolvenKitCyan}"
+                            Kind="VolumeUp" />
                     </MenuItem.Icon>
                 </MenuItem>
-
                 <MenuItem
                     x:Name="MenuItemShowScriptManager"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="Script Manager">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Unicons"
-                            Kind="JavaScriptLine"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitPurple}" />
+                        <iconPacks:PackIconUnicons
+                            Margin="6,0"
+                            Padding="0,1,0,1"
+                            Foreground="{StaticResource WolvenKitPurple}"
+                            Kind="JavaScript" />
                     </MenuItem.Icon>
                 </MenuItem>
-
-                <Separator />
+                
+                <Separator/>
 
                 <MenuItem
                     x:Name="MenuItemShowTextureImporter"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="Import Tool">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Unicons"
-                            Kind="ImportLine"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitYellow}" />
+                        <iconPacks:PackIconUnicons
+                            Margin="6,0"
+                            Padding="0,1,0,1"
+                            Foreground="{StaticResource WolvenKitYellow}"
+                            Kind="Import" />
                     </MenuItem.Icon>
                 </MenuItem>
-
                 <MenuItem
                     x:Name="MenuItemShowTextureExporter"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="Export Tool">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Unicons"
-                            Kind="ExportLine"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitYellow}" />
-                    </MenuItem.Icon>
-                </MenuItem>
-
-                <Separator />
-
-                <MenuItem
-                    x:Name="MenuItemShowHashTool"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Header="Hash Tool">
-                    <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Material"
-                            Kind="Pound"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitYellow}" />
-                    </MenuItem.Icon>
-                </MenuItem>
-
-                <Separator />
-
-                <MenuItem
-                    x:Name="ToolbarSettingsButton"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Header="Settings">
-                    <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Material"
-                            Kind="Tune"
-                            Size="{DynamicResource WolvenKitIconTiny}" />
+                        <iconPacks:PackIconUnicons
+                            Margin="6,0"
+                            Padding="0,1,0,1"
+                            Foreground="{StaticResource WolvenKitYellow}"
+                            Kind="Export" />
                     </MenuItem.Icon>
                 </MenuItem>
             </MenuItem>
 
-            <!-- Game -->
+            <!--  Game  -->
             <MenuItem
-                Padding="{DynamicResource WolvenKitMarginHorizontal}"
-                FontSize="{DynamicResource WolvenKitFontSubTitle}"
+                Margin="1,0"
+                Padding="12,0"
                 Header="Game">
+
+
+
                 <MenuItem
                     x:Name="ToolbarLaunchButton"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     CommandParameter="0"
                     Header="Launch Game">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
+                        <iconPacks:PackIconCodicons
+                            Margin="6,0"
+                            Foreground="{StaticResource WolvenKitYellow}"
                             Kind="Play"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitYellow}" />
+                            Style="{StaticResource WolvenKitToolBarButtonIcon}" />
                     </MenuItem.Icon>
                 </MenuItem>
 
                 <MenuItem
                     x:Name="ToolbarLaunchSteamButton"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="8,1"
                     CommandParameter="1"
-                    Header="Launch Game with Steam">
-                    <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Empty"
-                            Size="{DynamicResource WolvenKitIconTiny}" />
-                    </MenuItem.Icon>
-                </MenuItem>
+                    Header="Launch Game with Steam" />
 
                 <Separator />
 
                 <MenuItem
                     x:Name="MenuItemOpenGameFolder"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="Open Game Folder">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
-                            Kind="FolderOpened"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitTan}" />
+                        <iconPacks:PackIconForkAwesome
+                            Margin="6,0"
+                            Foreground="{StaticResource WolvenKitTan}"
+                            Kind="FolderOpen"
+                            Style="{StaticResource WolvenKitToolBarButtonIcon}" />
                     </MenuItem.Icon>
                 </MenuItem>
             </MenuItem>
 
-            <!-- Extensions -->
+            <!--  Extensions  -->
             <MenuItem
-                Padding="{DynamicResource WolvenKitMarginHorizontal}"
-                FontSize="{DynamicResource WolvenKitFontSubTitle}"
+                Margin="1,0"
+                Padding="12,0"
                 Header="Extensions">
                 <MenuItem
                     x:Name="MenuItemShowPluginTool"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="Plugin Manager">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
-                            Kind="Extensions"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitCyan}" />
+                        <iconPacks:PackIconCodicons
+                            Margin="6,0"
+                            Padding="0,1,0,1"
+                            Foreground="{StaticResource WolvenKitCyan}"
+                            Kind="Extensions" />
                     </MenuItem.Icon>
                 </MenuItem>
-
                 <MenuItem
                     x:Name="MenuItemShowModsView"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
+                    Margin="2,1"
                     Header="Mod Manager">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
-                            Kind="Package"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitYellow}" />
+                        <iconPacks:PackIconCodicons
+                            Margin="6,0"
+                            Padding="0,1,0,1"
+                            Foreground="{StaticResource WolvenKitYellow}"
+                            Kind="Package" />
                     </MenuItem.Icon>
                 </MenuItem>
 
-                <Separator />
+                <Separator Margin="2,4" />
 
                 <MenuItem
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Header="Cyberpunk Blender Add-on"
-                    Command="{Binding MainViewModel.OpenExternalLinkCommand}"
-                    CommandParameter="{Binding WikiLinks.CyberpunkBlenderAddon}">
-                    >
+                    x:Name="MenuItemCyberpunkBlenderAddonLink"
+                    Margin="2,1"
+                    Header="Cyberpunk Blender Add-on">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
-                            Kind="LinkExternal"
-                            Size="{DynamicResource WolvenKitIconTiny}" />
+                        <iconPacks:PackIconCodicons
+                            Margin="6,0"
+                            Padding="0,1,0,1"
+                            Foreground="White"
+                            Kind="LinkExternal" />
                     </MenuItem.Icon>
                 </MenuItem>
             </MenuItem>
 
-            <!-- Help -->
+            <!--  Help  -->
             <MenuItem
-                Padding="{DynamicResource WolvenKitMarginHorizontal}"
-                FontSize="{DynamicResource WolvenKitFontSubTitle}"
+                Margin="1,0"
+                Padding="12,0"
                 Header="Help">
+
                 <MenuItem
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Header="Setting up WolvenKit"
-                    Command="{Binding MainViewModel.OpenExternalLinkCommand}"
-                    CommandParameter="{Binding WikiLinks.WolvenKitSetupGuide}">
+                    x:Name="MenuItemWolvenKitSetupLink"
+                    Margin="2,1"
+                    Header="Setting up WolvenKit">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
-                            Kind="LinkExternal"
-                            Size="{DynamicResource WolvenKitIconTiny}" />
+                        <iconPacks:PackIconCodicons
+                            Margin="6,0"
+                            Padding="0,1,0,1"
+                            Foreground="White"
+                            Kind="LinkExternal" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem
+                    x:Name="MenuItemWolvenKitCreatingAModLink"
+                    Margin="2,1"
+                    Header="Creating a Mod">
+                    <MenuItem.Icon>
+                        <iconPacks:PackIconCodicons
+                            Margin="6,0"
+                            Padding="0,1,0,1"
+                            Foreground="White"
+                            Kind="LinkExternal" />
                     </MenuItem.Icon>
                 </MenuItem>
 
-                <!-- Submenu: Creating mods -->
-                <MenuItem
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Header="Creating mods">
-                    <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Empty"
-                            Size="{DynamicResource WolvenKitIconTiny}" />
-                    </MenuItem.Icon>
-
-                    <MenuItem
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Header="WolvenKit: Creating a Mod"
-                        Command="{Binding MainViewModel.OpenExternalLinkCommand}"
-                        CommandParameter="{Binding WikiLinks.WolvenKitCreatingAModGuide}">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Codicons"
-                                Kind="LinkExternal"
-                                Size="{DynamicResource WolvenKitIconTiny}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-
-                    <!-- Submenu: Adding new items -->
-                    <MenuItem
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Header="Adding new items">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Empty"
-                                Size="{DynamicResource WolvenKitIconTiny}" />
-                        </MenuItem.Icon>
-
-                        <MenuItem
-                            Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                            Header="Adding new clothes"
-                            Command="{Binding MainViewModel.OpenExternalLinkCommand}"
-                            CommandParameter="{Binding WikiLinks.AddingNewItems}">
-                            <MenuItem.Icon>
-                                <local:IconBox
-                                    IconPack="Material"
-                                    Kind="Hanger"
-                                    Size="{DynamicResource WolvenKitIconTiny}" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-
-                        <MenuItem
-                            Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                            Header="Adding new weapons"
-                            Command="{Binding MainViewModel.OpenExternalLinkCommand}"
-                            CommandParameter="{Binding WikiLinks.AddingNewItems_Weapons}">
-                            <MenuItem.Icon>
-                                <local:IconBox
-                                    IconPack="Material"
-                                    Kind="Pistol"
-                                    Size="{DynamicResource WolvenKitIconTiny}" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-                    </MenuItem>
-
-                    <!-- Submenu: NPCs and V -->
-                    <MenuItem
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Header="NPCs and V">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Empty"
-                                Size="{DynamicResource WolvenKitIconTiny}" />
-                        </MenuItem.Icon>
-
-                        <MenuItem
-                            Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                            Command="{Binding MainViewModel.OpenExternalLinkCommand}"
-                            CommandParameter="{Binding WikiLinks.NPVs}"
-                            Header="V as NPC">
-                            <MenuItem.Icon>
-                                <local:IconBox
-                                    IconPack="Material"
-                                    Kind="AccountPlus"
-                                    Size="{DynamicResource WolvenKitIconTiny}" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-
-                        <MenuItem
-                            Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                            Header="New NPCs for AMM"
-                            Command="{Binding MainViewModel.OpenExternalLinkCommand}"
-                            CommandParameter="{Binding WikiLinks.AMM_NPCs}">
-                            <MenuItem.Icon>
-                                <local:IconBox
-                                    IconPack="Material"
-                                    Kind="AccountPlus"
-                                    Size="{DynamicResource WolvenKitIconTiny}" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-
-                        <MenuItem
-                            Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                            Header="Custom Tattoos"
-                            Command="{Binding MainViewModel.OpenExternalLinkCommand}"
-                            CommandParameter="{Binding WikiLinks.Tattoos}">
-                            <MenuItem.Icon>
-                                <local:IconBox
-                                    IconPack="Material"
-                                    Kind="Panorama"
-                                    Size="{DynamicResource WolvenKitIconTiny}" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-
-                        <MenuItem
-                            Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                            Header="Hair"
-                            Command="{Binding MainViewModel.OpenExternalLinkCommand}"
-                            CommandParameter="{Binding WikiLinks.Hair}">
-                            <MenuItem.Icon>
-                                <local:IconBox
-                                    IconPack="Material"
-                                    Kind="HairDryer"
-                                    Size="{DynamicResource WolvenKitIconTiny}" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-
-                        <MenuItem
-                            Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                            Header="Character Creator Additions"
-                            Command="{Binding MainViewModel.OpenExternalLinkCommand}"
-                            CommandParameter="{Binding WikiLinks.CCXL}">
-                            <MenuItem.Icon>
-                                <local:IconBox
-                                    IconPack="Material"
-                                    Kind="Mirror"
-                                    Size="{DynamicResource WolvenKitIconTiny}" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-                    </MenuItem>
-
-                    <MenuItem
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Header="Changing the world"
-                        Command="{Binding MainViewModel.OpenExternalLinkCommand}"
-                        CommandParameter="{Binding WikiLinks.WorldEditing}">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Material"
-                                Kind="EarthPlus"
-                                Size="{DynamicResource WolvenKitIconTiny}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-
-                    <Separator />
-
-                    <MenuItem
-                        Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                        Header="Cheat Sheets"
-                        Command="{Binding MainViewModel.OpenExternalLinkCommand}"
-                        CommandParameter="{Binding WikiLinks.CheatSheets}">
-                        <MenuItem.Icon>
-                            <local:IconBox
-                                IconPack="Material"
-                                Kind="Magnify"
-                                Size="{DynamicResource WolvenKitIconTiny}" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-                </MenuItem>
-
-                <Separator />
+                <Separator Margin="2,4" />
 
                 <MenuItem
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Header="Discord Invitation"
-                    Command="{Binding MainViewModel.OpenExternalLinkCommand}"
-                    CommandParameter="{Binding WikiLinks.DiscordInvite}">
+                    x:Name="MenuItemDiscordInvitationLink"
+                    Margin="2,1"
+                    Header="Discord Invitation">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
-                            Kind="LinkExternal"
-                            Size="{DynamicResource WolvenKitIconTiny}" />
+                        <iconPacks:PackIconCodicons
+                            Margin="6,0"
+                            Padding="0,1,0,1"
+                            Foreground="White"
+                            Kind="LinkExternal" />
                     </MenuItem.Icon>
                 </MenuItem>
 
+                <Separator Margin="2,4" />
+
                 <MenuItem
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Command="{Binding MainViewModel.OpenExternalLinkCommand}"
-                    CommandParameter="{Binding WikiLinks.WolvenkitAbout}"
+                    x:Name="MenuItemAboutWolvenKitLink"
+                    Margin="2,1"
                     Header="About WolvenKit">
                     <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
-                            Kind="LinkExternal"
-                            Size="{DynamicResource WolvenKitIconTiny}" />
+                        <iconPacks:PackIconCodicons
+                            Margin="6,0"
+                            Padding="0,1,0,1"
+                            Foreground="White"
+                            Kind="LinkExternal" />
                     </MenuItem.Icon>
                 </MenuItem>
 
-                <Separator />
-
-                <MenuItem
-                    x:Name="ToolbarOpenLogsButton"
-                    Margin="{DynamicResource WolvenKitMenuBarItemMarginHorizontal}"
-                    Header="Open Logs Folder">
-                    <MenuItem.Icon>
-                        <local:IconBox
-                            IconPack="Codicons"
-                            Kind="FolderOpened"
-                            Size="{DynamicResource WolvenKitIconTiny}"
-                            Foreground="{StaticResource WolvenKitYellow}" />
-                    </MenuItem.Icon>
-                </MenuItem>
             </MenuItem>
+
         </others:ScriptableMenu>
+
     </Grid>
+
 </reactiveUi:ReactiveUserControl>

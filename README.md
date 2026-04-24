@@ -4,11 +4,11 @@
 
 ![GitHub Release Date](https://img.shields.io/github/release-date/WolvenKit/WolvenKit)
 ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/WolvenKit/WolvenKit/check-only.yml)
-![GitHub milestone](https://img.shields.io/github/milestones/progress/WolvenKit/WolvenKit/12)
+![GitHub milestone](https://img.shields.io/github/milestones/progress/WolvenKit/WolvenKit/11)
 ![GitHub all releases](https://img.shields.io/github/downloads/WolvenKit/WolvenKit/total)
 ![GitHub issues](https://img.shields.io/github/issues/WolvenKit/WolvenKit)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/WolvenKit/WolvenKit)
-<a href="https://discord.gg/Epkq79kd96"><img src="https://img.shields.io/discord/717692382849663036.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2"></a>
+<a href="https://discord.gg/cp77modding"><img src="https://img.shields.io/discord/717692382849663036.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2"></a>
 
 > ⚠️ This repository focuses on REDengine 4 for Cyberpunk 2077. For WolvenKit for <em>The Witcher 3: Wild Hunt</em> please see: https://github.com/WolvenKit/WolvenKit-7
 
@@ -31,15 +31,21 @@ It's completely open source, licensed under the <a href="https://github.com/Wolv
   
 ## Installation
 
-Wolvenkit requires the latest .NET 8.0 runtime:
+Wolvenkit requires the latest .NET 7.0 runtime:
 
-1. Go to [Microsoft's .NET download page](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
-2. Find the ".NET Desktop Runtime 8.0.x" section and download the installer for your architecture (x64)
+1. Go to [Microsoft's .NET download page](https://dotnet.microsoft.com/en-us/download/dotnet/7.0)
+2. Find the ".NET Desktop Runtime 7.0.x" section and download the installer for your architecture (x64)
 3. Run the downloaded installer
 
 ----------
 
 There are multiple ways to install Wolvenkit:
+
+### The WolvenKit.Installer app
+
+The WolvenKit.Installer app is a simple program for managing (installing, updating, removing) different WolvenKit versions similar to the Visual Studio Installer app. 
+
+It is [hosted on github](https://github.com/WolvenKit/WolvenKit.Installer) and you can install it from there. Click here: [![GitHub release (latest by date)](https://img.shields.io/github/v/release/WolvenKit/WolvenKit.Installer)](https://github.com/WolvenKit/WolvenKit.Installer/releases/latest)
 
 ### Portable or Installer
 
@@ -68,7 +74,7 @@ If you want to build the app from source yourself:
 4. Build the projects.
 
 ## Contributing
-- Join the [Cyberpunk 2077 Modding Server](https://discord.gg/Epkq79kd96) for active development
+- Join the [Cyberpunk 2077 Modding Server](discord.gg/Epkq79kd96) for active development
 
 Do you want to contribute? Community feedback and contributions are highly appreciated!
 It's a good idea to create an issue when implementing a feature so people don't work on the same feature/issue in an asynchronous manner.
@@ -78,8 +84,9 @@ It's a good idea to create an issue when implementing a feature so people don't 
 For any questions:
 Developer | Role | Email
 ------------ | ------------- | -------------
-[spirit (sprt_)](https://github.com/notaspirit) | Project Lead / Core Development | 
-[Traderain](https://github.com/Traderain) | Project Lead | [Email](mailto:hambalko.bence@gmail.com) 
+[Traderain](https://github.com/Traderain) | Project Lead / Core Development | [Email](mailto:hambalko.bence@gmail.com) 
+[Rfuzzo](https://github.com/rfuzzo) | Project Lead / Core Development | [Email](mailto:r.fuzzo@gmail.com) 
+[Seberoth](https://github.com/seberoth) | Core Development | 
 
 ## Screenshots
 
@@ -91,7 +98,7 @@ Developer | Role | Email
 
 WolvenKit is a direct result of the hard work and continuous support, financial and otherwise, of the many researchers, programmers, artists, contributors, and companies that have helped with this project. Without their outstanding work and generous support, we never would have been able to create WolvenKit for Cyberpunk 2077. A very special thank you goes out to...
 
-<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.png" alt="JetBrains logo." height="64">
+<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.svg" alt="JetBrains Logo (Main) logo." width="100" height="100">
 
 - [JetBrains](https://www.jetbrains.com) who supplied open source licences for our developers
 - [Syncfusion](https://www.syncfusion.com/company/about-us) who supplied an open source licence for the WPF controls we use

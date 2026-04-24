@@ -1,7 +1,8 @@
-using System.ComponentModel;
+using System;
+using System.Reactive.Linq;
 using System.Text.Json.Serialization;
-using CommunityToolkit.Mvvm.ComponentModel;
-using WolvenKit.Core;
+using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 
 namespace WolvenKit.Modkit.RED4.Sounds
 {
@@ -17,39 +18,22 @@ namespace WolvenKit.Modkit.RED4.Sounds
         mod_skip
     }
 
-    public class CustomSoundsModel : ObservableObject
+    public class CustomSoundsModel : ReactiveObject
     {
-        private bool _isEnabled;
-        private string _type = ECustomSoundType.mod_sfx_2d.ToString();
-
         public CustomSoundsModel()
         {
-            PropertyChanged += delegate(object? sender, PropertyChangedEventArgs args)
-            {
-                if (args.PropertyName == nameof(Type))
-                {
-                    IsEnabled = Type != ECustomSoundType.mod_skip.ToString();
-                }
-            };
+            this.WhenAnyValue(x => x.Type)
+                .Subscribe(type => IsEnabled = type != ECustomSoundType.mod_skip.ToString());
         }
 
-        public string? Name { get; set; }
-
-        public string Type
-        {
-            get => _type;
-            set => SetProperty(ref _type, value);
-        }
-
-        public string? File { get; set; }
+        public string Name { get; set; }
+        [Reactive] public string Type { get; set; } = ECustomSoundType.mod_sfx_2d.ToString();
+        public string File { get; set; }
         public decimal? Gain { get; set; } = 1.0m;
         public decimal? Pitch { get; set; } = 0.0m;
 
         [JsonIgnore]
-        public bool IsEnabled
-        {
-            get => _isEnabled;
-            set => SetProperty(ref _isEnabled, value);
-        }
+        [Reactive] public bool IsEnabled { get; set; }
+
     }
 }

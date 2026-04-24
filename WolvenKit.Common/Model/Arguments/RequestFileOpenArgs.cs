@@ -5,29 +5,57 @@ namespace WolvenKit.Common.Model
 {
     public class RequestFileDeleteArgs : EventArgs
     {
-        public RequestFileDeleteArgs(string file) => Files = new List<string>() { file };
+        #region Constructors
 
-        public RequestFileDeleteArgs(List<string> files) => Files = files;
+        public RequestFileDeleteArgs(string file)
+        {
+            Files = new List<string>() { file };
+        }
+
+        public RequestFileDeleteArgs(List<string> files)
+        {
+            Files = files;
+        }
+
+        #endregion Constructors
+
+        #region Properties
 
         public List<string> Files { get; set; }
+
+        #endregion Properties
     }
 
     public class RequestFileOpenArgs : EventArgs
     {
-        public RequestFileOpenArgs(string file) => File = file;
-
+        #region Properties
 
         public string File { get; set; }
-
         public bool Inspect { get; set; }
+
+        #endregion Properties
     }
 
     public class RequestFilesChangeArgs : EventArgs
     {
-        public RequestFilesChangeArgs(string file) => Files = new List<string>() { file };
+        #region Constructors
 
-        public RequestFilesChangeArgs(List<string> files) => Files = files;
+        public RequestFilesChangeArgs(string file)
+        {
+            Files = new List<string>() { file };
+        }
+
+        public RequestFilesChangeArgs(List<string> files)
+        {
+            Files = files;
+        }
+
+        #endregion Constructors
+
+        #region Properties
 
         public List<string> Files { get; set; }
+
+        #endregion Properties
     }
 }

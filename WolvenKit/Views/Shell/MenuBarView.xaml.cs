@@ -1,21 +1,33 @@
+using System;
+using System.Collections.Generic;
+using System.Reactive;
 using System.Reactive.Disposables;
+using System.Reactive.Linq;
+using System.Text;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
 using ReactiveUI;
 using Splat;
-using WolvenKit.App.Interaction;
-using WolvenKit.App.Interaction.Options;
-using WolvenKit.App.Models.ProjectManagement.Project;
-using WolvenKit.App.ViewModels.Dialogs;
-using WolvenKit.App.ViewModels.Shell;
+using WolvenKit.Interaction;
+using WolvenKit.ViewModels.Shell;
+using WolvenKit.Views.Dialogs;
+using WolvenKit.Views.Dialogs.Windows;
 
 namespace WolvenKit.Views.Shell;
-
 /// <summary>
 /// Interaction logic for MenuBarView.xaml
 /// </summary>
 public partial class MenuBarView : ReactiveUserControl<MenuBarViewModel>
 {
     private AppViewModel _mainViewModel;
+
 
     //public static MaterialsRepositoryDialog MaterialsRepositoryDia { get; set; }
 
@@ -31,6 +43,7 @@ public partial class MenuBarView : ReactiveUserControl<MenuBarViewModel>
 
             _mainViewModel = Locator.Current.GetService<AppViewModel>();
 
+
             // Home
             this.BindCommand(ViewModel,
                        viewModel => viewModel.MainViewModel.ShowHomePageCommand,
@@ -42,44 +55,6 @@ public partial class MenuBarView : ReactiveUserControl<MenuBarViewModel>
                         viewModel => viewModel.MainViewModel.NewFileCommand,
                         view => view.MenuItemNewFile)
                     .DisposeWith(disposables);
-            this.BindCommand(ViewModel,
-                    viewModel => viewModel.MainViewModel.NewPhotoModeFilesCommand,
-                    view => view.MenuItemNewPhotoModeFiles)
-                .DisposeWith(disposables);
-            this.BindCommand(ViewModel,
-                    viewModel => viewModel.MainViewModel.GenerateInkatlasCommand,
-                    view => view.MenuItemGenerateInkatlas)
-                .DisposeWith(disposables);
-            this.BindCommand(ViewModel,
-                    viewModel => viewModel.MainViewModel.GenerateMinimalQuestFilesCommand,
-                    view => view.MenuItemGenerateMinimalQuest)
-                .DisposeWith(disposables);
-            this.BindCommand(ViewModel,
-                    viewModel => viewModel.MainViewModel.AddOrEditRadioCommand,
-                    view => view.MenuItemAddOrEditRadio)
-                .DisposeWith(disposables);
-            this.BindCommand(ViewModel,
-                    viewModel => viewModel.MainViewModel.RegisterWorldbuilderFilesCommand,
-                    view => view.MenuItemRegisterWorldbuilderFiles)
-                .DisposeWith(disposables);
-            this.BindCommand(ViewModel,
-                    viewModel => viewModel.MainViewModel.GeneratePropItemCommand,
-                    view => view.MenuItemGeneratePropFile)
-                .DisposeWith(disposables);
-            this.BindCommand(ViewModel,
-                    viewModel => viewModel.MainViewModel.AddPlayerHeadCommand,
-                    view => view.MenuItemAddPlayerHead)
-                .DisposeWith(disposables);
-
-            // Archive
-            this.BindCommand(ViewModel,
-                    viewModel => viewModel.MainViewModel.ImportArchiveCommand,
-                    view => view.MenuItemImportArchive)
-                .DisposeWith(disposables);
-            this.BindCommand(ViewModel,
-                    viewModel => viewModel.MainViewModel.AddAXlItemFilesCommand,
-                    view => view.MenuItemAddAxlItemFiles)
-                .DisposeWith(disposables);
             this.BindCommand(ViewModel,
                     viewModel => viewModel.MainViewModel.SaveFileCommand,
                     view => view.MenuItemSave)
@@ -111,34 +86,6 @@ public partial class MenuBarView : ReactiveUserControl<MenuBarViewModel>
             this.BindCommand(ViewModel,
                     viewModel => viewModel.MainViewModel.ShowProjectSettingsCommand,
                     view => view.ToolbarProjectSettingsButton)
-                .DisposeWith(disposables);
-            this.BindCommand(ViewModel,
-                    viewModel => viewModel.MainViewModel.ScanForBrokenReferencePathsCommand,
-                    view => view.ToolbarProjectScanFilePathsButton)
-                .DisposeWith(disposables);
-            this.BindCommand(ViewModel,
-                    viewModel => viewModel.MainViewModel.ScanForBrokenFilesCommand,
-                    view => view.ToolbarProjectScanForBrokenFilesButton)
-                .DisposeWith(disposables);
-            this.BindCommand(ViewModel,
-                    viewModel => viewModel.MainViewModel.FindUnusedFilesCommand,
-                    view => view.ToolbarProjectFindUnusedFilesButton)
-                .DisposeWith(disposables);
-            this.BindCommand(ViewModel,
-                    viewModel => viewModel.MainViewModel.DeleteEmptyFoldersCommand,
-                    view => view.ToolbarProjectDeleteEmptyFoldersButton)
-                .DisposeWith(disposables);
-            this.BindCommand(ViewModel,
-                    viewModel => viewModel.MainViewModel.DeleteEmptyMeshesCommand,
-                    view => view.ToolbarProjectDeleteEmptyMeshesButton)
-                .DisposeWith(disposables);
-            this.BindCommand(ViewModel,
-                    viewModel => viewModel.MainViewModel.RunFileValidationOnProjectCommand,
-                    view => view.ToolbarProjectRunFileValidationButton)
-                .DisposeWith(disposables);
-            this.BindCommand(ViewModel,
-                    viewModel => viewModel.MainViewModel.ImportFromEntitySpawnerCommand,
-                    view => view.ToolbarImportEntitySpawnerButton)
                 .DisposeWith(disposables);
             this.BindCommand(ViewModel,
                     viewModel => viewModel.MainViewModel.OpenLogsCommand,
@@ -220,11 +167,6 @@ public partial class MenuBarView : ReactiveUserControl<MenuBarViewModel>
                     view => view.MenuItemShowTextureExporter)
                 .DisposeWith(disposables);
 
-            this.BindCommand(ViewModel,
-                    viewModel => viewModel.MainViewModel.ShowHashToolCommand,
-                    view => view.MenuItemShowHashTool)
-                .DisposeWith(disposables);
-
             // Game
             this.BindCommand(ViewModel,
                         viewModel => viewModel.MainViewModel.LaunchGameCommand,
@@ -244,73 +186,63 @@ public partial class MenuBarView : ReactiveUserControl<MenuBarViewModel>
                    viewModel => viewModel.MainViewModel.ShowModsViewCommand,
                    view => view.MenuItemShowModsView)
                .DisposeWith(disposables);
+            this.BindCommand(ViewModel,
+                    viewModel => viewModel.MainViewModel.OpenExternalLinkCommand,
+                    view => view.MenuItemCyberpunkBlenderAddonLink,
+                    viewModel => viewModel.MainViewModel.CyberpunkBlenderAddonLink);
+
+            // Help
+            this.BindCommand(ViewModel,
+                    viewModel => viewModel.MainViewModel.OpenExternalLinkCommand,
+                    view => view.MenuItemWolvenKitSetupLink,
+                    viewModel => viewModel.MainViewModel.WolvenKitSetupLink);
+            this.BindCommand(ViewModel,
+                    viewModel => viewModel.MainViewModel.OpenExternalLinkCommand,
+                    view => view.MenuItemWolvenKitCreatingAModLink,
+                    viewModel => viewModel.MainViewModel.WolvenKitCreatingAModLink);
+            this.BindCommand(ViewModel,
+                    viewModel => viewModel.MainViewModel.OpenExternalLinkCommand,
+                    view => view.MenuItemDiscordInvitationLink,
+                    viewModel => viewModel.MainViewModel.DiscordInvitationLink);
+            this.BindCommand(ViewModel,
+                    viewModel => viewModel.MainViewModel.OpenExternalLinkCommand,
+                    view => view.MenuItemAboutWolvenKitLink,
+                    viewModel => viewModel.MainViewModel.AboutWolvenKitLink);
 
             // visibility
             this.Bind(ViewModel,
-                    viewModel => viewModel.ProjectExplorerCheckbox,
+                    viewModel => viewModel.MainViewModel.ProjectExplorerViewModel.IsVisible,
                     view => view.ProjectExplorerCheckbox.IsChecked)
                 .DisposeWith(disposables);
             this.Bind(ViewModel,
-                    viewModel => viewModel.AssetBrowserCheckbox,
+                    viewModel => viewModel.MainViewModel.AssetBrowserViewModel.IsVisible,
                     view => view.AssetBrowserCheckbox.IsChecked)
                 .DisposeWith(disposables);
             this.Bind(ViewModel,
-                viewModel => viewModel.PropertiesCheckbox,
+                viewModel => viewModel.MainViewModel.PropertiesViewModel.IsVisible,
                     view => view.PropertiesCheckbox.IsChecked)
                 .DisposeWith(disposables);
             this.Bind(ViewModel,
-                    viewModel => viewModel.LogCheckbox,
+                    viewModel => viewModel.MainViewModel.LogViewModel.IsVisible,
                     view => view.LogCheckbox.IsChecked)
                 .DisposeWith(disposables);
+            //this.Bind(ViewModel,
+            //        viewModel => viewModel.MainViewModel.ImportExportToolVM.IsVisible,
+            //        view => view.ImportExportCheckbox.IsChecked)
+            //    .DisposeWith(disposables);
             this.Bind(ViewModel,
-                    viewModel => viewModel.TweakBrowserCheckbox,
+                    viewModel => viewModel.MainViewModel.TweakBrowserViewModel.IsVisible,
                     view => view.TweakBrowserCheckbox.IsChecked)
                 .DisposeWith(disposables);
             this.Bind(ViewModel,
-                    viewModel => viewModel.LocKeyBrowserCheckbox,
+                    viewModel => viewModel.MainViewModel.LocKeyBrowserViewModel.IsVisible,
                     view => view.LocKeyBrowserCheckbox.IsChecked)
                 .DisposeWith(disposables);
         });
     }
 
-    private void SetLayoutToDefault(object sender, RoutedEventArgs e) => DockingAdapter.G_Dock.LoadDefaultLayout();
-    private void SaveLayoutToProject(object sender, RoutedEventArgs e) => DockingAdapter.G_Dock.SaveLayout();
-
-    private void ResetDefaultLayout(object sender, RoutedEventArgs e) => DockingAdapter.G_Dock.ResetDefaultLayout();
-
-    private void SaveCurrentLayoutToDefault(object sender, RoutedEventArgs e) => DockingAdapter.G_Dock.SaveLayout(true);
-    private void GenerateMaterialRepoButton_Click(object sender, RoutedEventArgs e) => Interactions.ShowMaterialRepositoryView();
-
-    private void GenerateItemCodes_Click(object sender, RoutedEventArgs e)
-    {
-        if (ViewModel is not MenuBarViewModel vm)
-        {
-            return;
-        }
-
-        var itemCodes = vm.GenerateItemCodesFromYaml();
-
-        if (itemCodes.Count == 0)
-        {
-            return;
-        }
-
-        Interactions.ShowDictionaryAsCopyableList(
-            new ShowDictAsCopyableListDialogOptions("Item codes:", "These are your item codes", itemCodes));
-    }
-
-
-    private void AddItemsToVendor_Click(object sender, RoutedEventArgs e)
-    {
-        if (ViewModel is not MenuBarViewModel vm || vm.MainViewModel.ActiveProject is not Cp77Project project)
-        {
-            return;
-        }
-
-        var dialogVm = Interactions.AddItemsToStore(project);
-
-        vm.AddItemCodesToFiles(dialogVm);
-    }
-
+    private void SetLayoutToDefault(object sender, RoutedEventArgs e) => DockingAdapter.G_Dock.LoadLayoutDefault();
+    private void SaveLayoutToProject(object sender, RoutedEventArgs e) => DockingAdapter.G_Dock.SaveLayoutToProject();
+    private async void GenerateMaterialRepoButton_Click(object sender, RoutedEventArgs e) => await Interactions.ShowMaterialRepositoryView.Handle(Unit.Default);
 
 }

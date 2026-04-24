@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -9,7 +10,6 @@ using System.Windows.Shapes;
 using WolvenKit.RED4.Types;
 using WolvenKit.ViewModels;
 using Point = System.Windows.Point;
-using Rect = System.Windows.Rect;
 
 namespace WolvenKit.Views.Editors
 {
@@ -121,72 +121,66 @@ namespace WolvenKit.Views.Editors
                 return;
             }
 
-            var element = (UIElement)sender;
-
-            if (element is not Ellipse { Tag: GeneralizedPoint point })
-            {
-                return;
-            }
             if (_dragStart != null && e.LeftButton == MouseButtonState.Pressed)
             {
+                var element = (UIElement)sender;
                 var pos = e.GetPosition(CanvasPoints);
 
-                pos = vm.ClampToCanvas(pos);
-                Canvas.SetLeft(element, pos.X - 3);
-                Canvas.SetTop(element, pos.Y - 3);
+                var cpoint = vm.ClampToCanvas(pos);
 
-                // find point on curve
-                var curvePoint = vm.Curve.FirstOrDefault(_ => _ == point);
+                Canvas.SetLeft(element, cpoint.X - 3);
+                Canvas.SetTop(element, cpoint.Y - 3);
 
-                if (curvePoint == null)
+                if (element is Ellipse ell)
                 {
-                    return;
-                }
-                var (t, v) = vm.ToWorldCoordinates(pos.X, pos.Y);
+                    var model = (GeneralizedPoint)ell.Tag;
 
-                curvePoint.T = t;
-                curvePoint.V = v;
-                vm.Reload(false);
+                    // find point on curve
+                    var generalizedPoint = vm.Curve.FirstOrDefault(_ => _ == model);
+                    if (generalizedPoint != null)
+                    {
+                        var (t, v) = vm.ToWorldCoordinates(cpoint.X, cpoint.Y);
+                        generalizedPoint.T = t;
+                        generalizedPoint.V = v;
+
+                        vm.Reload(false);
+                    }
+                }
             }
         }
 
         private void POnMouseUp(object sender, MouseButtonEventArgs e)
         {
             var element = (UIElement)sender;
-
             _dragStart = null;
             element.ReleaseMouseCapture();
-            if (element is not Ellipse { Tag: GeneralizedPoint point } circle)
-            {
-                return;
-            }
-            point.IsSelected = false;
-            circle.Fill = GetPointColor(point);
+
+            //if (element is Ellipse { Tag: GeneralizedPoint point } ell)
+            //{
+            //    point.IsSelected = false;
+            //    ell.Fill = point.IsSelected ? Brushes.BlueViolet :
+            //        point.IsControlPoint ? Brushes.OrangeRed : Brushes.Yellow;
+            //}
         }
 
         private void POnMouseDown(object sender, MouseButtonEventArgs e)
         {
             var element = (UIElement)sender;
-
             _dragStart = e.GetPosition(element);
             element.CaptureMouse();
-            if (element is not Ellipse { Tag: GeneralizedPoint point } circle)
+
+            if (element is Ellipse { Tag: GeneralizedPoint point } /*&& e.ChangedButton == MouseButton.Right*/ && _isCtrlPressed)
             {
-                return;
-            }
-            if (DataContext is not CurveEditorViewModel vm)
-            {
-                return;
-            }
-            if (!_isCtrlPressed)
-            {
-                point.IsSelected = true;
-                circle.Fill = GetPointColor(point);
-            }
-            else
-            {
-                vm.Curve.Remove(point);
-                vm.Reload();
+                //point.IsSelected = !point.IsSelected;
+                //ell.Fill = point.IsSelected ? Brushes.BlueViolet :
+                //    point.IsControlPoint ? Brushes.OrangeRed : Brushes.Yellow;
+
+                // delete curve point
+                if (DataContext is CurveEditorViewModel vm)
+                {
+                    vm.Curve.Remove(point);
+                    vm.Reload();
+                }
             }
         }
 
@@ -194,7 +188,7 @@ namespace WolvenKit.Views.Editors
 
         #region events
 
-        private void OnLoaded(object sender, RoutedEventArgs e)
+        private void MainWindow1_OnLoaded(object sender, RoutedEventArgs e)
         {
             KeyDown += OnKeyDown;
             KeyUp += OnKeyUp;
@@ -369,16 +363,16 @@ namespace WolvenKit.Views.Editors
             // clear existing points
             CanvasPoints.Children.Clear();
             DrawAxes();
-            var pointSize = (double)(FindResource("WolvenKitCurveEditorPointSize") ?? 8.0);
 
             // add points
             foreach (var generalizedPoint in vm.Curve)
             {
                 var p = new Ellipse
                 {
-                    Fill = GetPointColor(generalizedPoint),
-                    Width = pointSize,
-                    Height = pointSize,
+                    Stroke = Brushes.Black,
+                    Fill = generalizedPoint.IsSelected ? Brushes.BlueViolet : generalizedPoint.IsControlPoint ? Brushes.OrangeRed : Brushes.Yellow,
+                    Width = 8,
+                    Height = 8,
                     Tag = generalizedPoint
                 };
                 Canvas.SetLeft(p, generalizedPoint.RenderPoint.Value.X - 3);
@@ -405,13 +399,10 @@ namespace WolvenKit.Views.Editors
                 var wymax = /*vm.MaxV * */CanvasPoints.ActualHeight - CurveEditorViewModel.YMIN;
                 //var wxmin = /* vm.MaxT * */CanvasPoints.ActualWidth - CurveEditorViewModel.XMIN;
                 //var wymin = /*vm.MaxV * */CanvasPoints.ActualHeight - CurveEditorViewModel.YMIN;
-                var gridSize = (Rect)(FindResource("WolvenKitGridSize") ?? new Rect(0, 0, 48, 48));
-                var xstep = gridSize.Width;
-                var ystep = gridSize.Height;
+                const double xstep = 40;
+                const double ystep = 40;
                 const double xtic = 5;
                 const double ytic = 5;
-
-                var fontSize = (double)(Application.Current.Resources["WolvenKitFontSubTitle"] ?? 10.0);
 
                 // Make the X axis.
                 var xaxisGeom = new GeometryGroup();
@@ -429,27 +420,25 @@ namespace WolvenKit.Views.Editors
                     xaxisGeom.Children.Add(new LineGeometry(tic0, tic1));
 
                     var t = Math.Round(vm.ToWorldCoordinateX(x), 2);
-                    DrawLabels(CanvasPoints, $"{t:N2}",//t.ToString(CultureInfo.InvariantCulture),
-                        new Point(tic0.X, tic0.Y + 10), fontSize,
+                    DrawLabels(CanvasPoints, t.ToString(CultureInfo.InvariantCulture),
+                        new Point(tic0.X, tic0.Y + 10), 12,
                         HorizontalAlignment.Center,
                         VerticalAlignment.Top);
 
-                    /*
                     var tic01 = new Point(x, CurveEditorViewModel.XMIN - ytic);
                     var tic11 = new Point(x, CurveEditorViewModel.XMIN + ytic);
                     xaxisGeom.Children.Add(new LineGeometry(tic01, tic11));
 
-                    DrawLabels(CanvasPoints, $"{t:N2}",//t.ToString(CultureInfo.InvariantCulture),
-                        new Point(tic01.X, tic01.Y - 20), fontSize,
+                    DrawLabels(CanvasPoints, t.ToString(CultureInfo.InvariantCulture),
+                        new Point(tic01.X, tic01.Y - 20), 12,
                         HorizontalAlignment.Center,
                         VerticalAlignment.Top);
-                    */
                 }
 
                 var xaxisPath = new Path
                 {
-                    StrokeThickness = 2,
-                    Stroke = (SolidColorBrush)FindResource("WolvenKitGraphAxis"),
+                    StrokeThickness = 1,
+                    Stroke = Brushes.Black,
                     Data = xaxisGeom
                 };
 
@@ -473,28 +462,26 @@ namespace WolvenKit.Views.Editors
 
                     // Label the tic mark's Y coordinate.
                     var v = Math.Round(vm.ToWorldCoordinateY(y), 2);
-                    DrawLabels(CanvasPoints, $"{v:N2}",//v.ToString(CultureInfo.InvariantCulture),
-                        new Point(tic0.X, tic0.Y), fontSize,
-                        HorizontalAlignment.Right,
+                    DrawLabels(CanvasPoints, v.ToString(CultureInfo.InvariantCulture),
+                        new Point(tic0.X - 15, tic0.Y), 12,
+                        HorizontalAlignment.Center,
                         VerticalAlignment.Center);
 
-                    /*
                     var tic01 = new Point(wxmax - xtic, y);
                     var tic11 = new Point(wxmax + xtic, y);
                     xaxisGeom.Children.Add(new LineGeometry(tic01, tic11));
 
                     // Label the tic mark's Y coordinate.
-                    DrawLabels(CanvasPoints, $"{v:N2}",//v.ToString(CultureInfo.InvariantCulture),
-                        new Point(tic01.X, tic01.Y), fontSize,
-                        HorizontalAlignment.Left,
+                    DrawLabels(CanvasPoints, v.ToString(CultureInfo.InvariantCulture),
+                        new Point(tic01.X + 25, tic01.Y), 12,
+                        HorizontalAlignment.Center,
                         VerticalAlignment.Center);
-                    */
                 }
 
                 var yaxisPath = new Path
                 {
-                    StrokeThickness = 2,
-                    Stroke = (SolidColorBrush)FindResource("WolvenKitGraphAxis"),
+                    StrokeThickness = 1,
+                    Stroke = Brushes.Black,
                     Data = yaxisGeom
                 };
 
@@ -502,14 +489,13 @@ namespace WolvenKit.Views.Editors
             }
         }
 
-        private void DrawLabels(Panel can, string text, Point location, double fontSize, HorizontalAlignment halign, VerticalAlignment valign)
+        private static void DrawLabels(Panel can, string text, Point location, double fontSize, HorizontalAlignment halign, VerticalAlignment valign)
         {
             // Make the label.
             var label = new Label
             {
                 Content = text,
                 FontSize = fontSize,
-                Foreground = (SolidColorBrush)FindResource("WolvenKitGraphLabel"),
                 Background = Brushes.Transparent,
                 BorderBrush = Brushes.Transparent
             };
@@ -551,19 +537,6 @@ namespace WolvenKit.Views.Editors
             Canvas.SetTop(label, y);
         }
 
-        private SolidColorBrush GetPointColor(GeneralizedPoint point)
-        {
-            if (point.IsSelected)
-            {
-                return (SolidColorBrush)FindResource("WolvenKitPurple");
-            }
-            if (point.IsControlPoint)
-            {
-                return Brushes.OrangeRed;
-            }
-            return (SolidColorBrush)FindResource("WolvenKitYellow");
-        }
-
         public CurveDto GetCurve()
         {
             if (DataContext is CurveEditorViewModel vm)
@@ -578,6 +551,8 @@ namespace WolvenKit.Views.Editors
 
                         var values = _model.GetCurvePoints()
                             .Select(x => x.GetValue())
+                            .OfType<Tuple<IRedType, IRedType>>()
+                            .Select(x => x.Item1)
                             .OfType<HDRColor>()
                             .ToList();
 
@@ -586,7 +561,7 @@ namespace WolvenKit.Views.Editors
                         for (var i = 0; i < values.Count; i++)
                         {
                             var item = values[i];
-                            item.Alpha = (CFloat)(float)alpha[i].Item2;
+                            item.Alpha = (CFloat)alpha[i].Item2;
                             vec.Add(new Tuple<double, IRedType>(alpha[i].Item1, item));
                         }
 
@@ -610,11 +585,13 @@ namespace WolvenKit.Views.Editors
 
         private void UpdatePointColors()
         {
-            foreach (var circle in CanvasPoints.Children.OfType<Ellipse>())
+            foreach (var ellipsis in CanvasPoints.Children.OfType<Ellipse>())
             {
-                if (circle.Tag is GeneralizedPoint point)
+                if (ellipsis.Tag is GeneralizedPoint generalizedPoint)
                 {
-                    circle.Fill = GetPointColor(point);
+                    ellipsis.Fill = generalizedPoint.IsSelected ? Brushes.BlueViolet :
+                        generalizedPoint.IsControlPoint ? Brushes.OrangeRed : Brushes.Yellow;
+
                 }
             }
         }

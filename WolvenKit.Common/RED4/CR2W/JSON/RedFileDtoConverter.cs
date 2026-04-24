@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -9,11 +10,20 @@ using WolvenKit.RED4.Types;
 
 namespace WolvenKit.RED4.CR2W.JSON;
 
-public class RedFileDtoConverter : CustomRedConverter<RedFileDto>
+public class RedFileDtoConverter : JsonConverter<RedFileDto>, ICustomRedConverter
 {
     private readonly ReferenceResolver<RedBaseClass> _referenceResolver;
+    private bool _skipHeader;
 
-    public RedFileDtoConverter(ReferenceResolver<RedBaseClass> referenceResolver) => _referenceResolver = referenceResolver;
+    public RedFileDtoConverter(ReferenceResolver<RedBaseClass> referenceResolver, bool skipHeader = false)
+    {
+        _referenceResolver = referenceResolver;
+        _skipHeader = skipHeader;
+    }
+
+    public void SetSkipHeader(bool skipHeader) => _skipHeader = skipHeader;
+
+    public object? ReadRedType(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => Read(ref reader, typeToConvert, options);
 
     public override RedFileDto Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
@@ -36,7 +46,11 @@ public class RedFileDtoConverter : CustomRedConverter<RedFileDto>
             throw new JsonException();
         }
 
-        result.Header = JsonSerializer.Deserialize<JsonHeader>(ref reader, options) ?? throw new JsonException("Invalid JSON format");
+        result.Header = JsonSerializer.Deserialize<JsonHeader>(ref reader, options);
+        if (result.Header == null)
+        {
+            throw new JsonException("Invalid JSON format");
+        }
         RedJsonSerializer.SetHeader(result.Header);
 
         if (RedJsonSerializer.IsNewerThen(new JsonHeader().WKitJsonVersion))
@@ -135,7 +149,7 @@ public class RedFileDtoConverter : CustomRedConverter<RedFileDto>
                 {
                     var converter = options.GetConverter(typeof(RedBaseClass));
                     result.RootChunk = converter is ICustomRedConverter conv
-                        ? (RedBaseClass?)conv.ReadRedType(ref reader, typeof(RedBaseClass), options) ?? throw new ArgumentNullException()
+                        ? (RedBaseClass?)conv.ReadRedType(ref reader, typeof(RedBaseClass), options)
                         : throw new JsonException();
 
                     break;
@@ -155,7 +169,7 @@ public class RedFileDtoConverter : CustomRedConverter<RedFileDto>
                             break;
                         }
 
-                        result.EmbeddedFiles.Add(JsonSerializer.Deserialize<CR2WEmbedded>(ref reader, options) ?? throw new ArgumentNullException());
+                        result.EmbeddedFiles.Add(JsonSerializer.Deserialize<CR2WEmbedded>(ref reader, options));
                     }
 
                     break;
@@ -228,7 +242,7 @@ public class RedFileDtoConverter : CustomRedConverter<RedFileDto>
                         throw new JsonException();
                     }
 
-                    result.RootChunk = JsonSerializer.Deserialize<RedBaseClass>(ref reader, options) ?? throw new ArgumentNullException();
+                    result.RootChunk = JsonSerializer.Deserialize<RedBaseClass>(ref reader, options);
 
                     break;
                 }
@@ -247,7 +261,7 @@ public class RedFileDtoConverter : CustomRedConverter<RedFileDto>
                             break;
                         }
 
-                        result.EmbeddedFiles.Add(JsonSerializer.Deserialize<CR2WEmbedded>(ref reader, options) ?? throw new ArgumentNullException());
+                        result.EmbeddedFiles.Add(JsonSerializer.Deserialize<CR2WEmbedded>(ref reader, options));
                     }
 
                     break;
@@ -310,7 +324,7 @@ public class RedFileDtoConverter : CustomRedConverter<RedFileDto>
 
         writer.WriteStartObject();
 
-        if (!RedJsonSerializer.RedOptions.SkipHeader)
+        if (!_skipHeader)
         {
             writer.WritePropertyName("Header");
             JsonSerializer.Serialize(writer, value.Header, options);

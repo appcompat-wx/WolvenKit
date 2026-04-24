@@ -1,11 +1,10 @@
 using System;
 using System.Reactive.Disposables;
 using System.Threading.Tasks;
-using System.Windows.Controls;
 using ReactiveUI;
 using Splat;
-using WolvenKit.App.ViewModels.HomePage.Pages;
 using WolvenKit.Functionality.Helpers;
+using WolvenKit.ViewModels.Shared;
 
 namespace WolvenKit.Views.HomePage.Pages
 {
@@ -18,13 +17,10 @@ namespace WolvenKit.Views.HomePage.Pages
             ViewModel = Locator.Current.GetService<WelcomePageViewModel>();
             DataContext = ViewModel;
 
+            InitWebView2();
+
             this.WhenActivated(disposables =>
             {
-                this.Bind(ViewModel, vm => vm.SelectedPinnedOrder, v => v.PinnedOrder.SelectedValue);
-                this.Bind(ViewModel, vm => vm.SelectedRecentOrder, v => v.RecentOrder.SelectedValue);
-                this.Bind(ViewModel, vm => vm.PinnedFilter, v => v.PinnedFilter.Text);
-                this.Bind(ViewModel, vm => vm.RecentFilter, v => v.RecentFilter.Text);
-
                 this.BindCommand(
                     ViewModel,
                     vm => vm.OpenLinkCommand,
@@ -62,7 +58,7 @@ namespace WolvenKit.Views.HomePage.Pages
                         view => view.OpenProjectButton)
                     .DisposeWith(disposables);
                 this.BindCommand(ViewModel,
-                        viewModel => viewModel.CloseHomePageCommand,
+                        viewModel => viewModel.CloseHomePage,
                         view => view.ContinueWithoutProjectButton)
                     .DisposeWith(disposables);
 
@@ -70,6 +66,26 @@ namespace WolvenKit.Views.HomePage.Pages
 
             });
 
+        }
+
+        private async void InitWebView2()
+        {
+            if (!StaticReferences.IsWebView2Enabled)
+            {
+                return;
+            }
+
+            try
+            {
+                await Task.CompletedTask;
+                //await FeaturedVideo.EnsureCoreWebView2Async(Helpers.objCoreWebView2Environment);
+
+                //FeaturedVideo.SetCurrentValue(Microsoft.Web.WebView2.Wpf.WebView2.SourceProperty, (System.Uri)new Uri("https://www.youtube.com/embed/WfEi3QwhTIs"));
+            }
+            catch (Exception)
+            {
+                // TODO: handle this
+            }
         }
     }
 }

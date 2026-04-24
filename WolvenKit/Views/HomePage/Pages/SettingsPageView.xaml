@@ -1,23 +1,27 @@
 <reactiveUi:ReactiveUserControl
     x:Class="WolvenKit.Views.HomePage.Pages.SettingsPageView"
-    x:TypeArguments="viewmodels:SettingsPageViewModel"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:system="clr-namespace:System;assembly=mscorlib"
     xmlns:hc="https://handyorg.github.io/handycontrol"
     xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+    xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
     xmlns:reactiveUi="http://reactiveui.net"
+    xmlns:System="clr-namespace:System;assembly=mscorlib"
+    xmlns:sp="clr-namespace:WolvenKit.Views.HomePage.Pages"
     xmlns:syncfusion="http://schemas.syncfusion.com/wpf"
-    xmlns:viewmodels="clr-namespace:WolvenKit.ViewModels">
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+    xmlns:viewmodels="clr-namespace:WolvenKit.ViewModels"
+    x:TypeArguments="viewmodels:SettingsPageViewModel">
+
+    <Grid MinWidth="300" MinHeight="300">
 
         <Grid.Resources>
+            
             <ResourceDictionary>
-                <system:Boolean x:Key="FalseValue">False</system:Boolean>
+                <System:Boolean x:Key="FalseValue">False</System:Boolean>
+                <!--<ResourceDictionary.MergedDictionaries>
+                    <hc:ThemeResources RequestedTheme="Dark" />
+                    <hc:Theme />
+                </ResourceDictionary.MergedDictionaries>-->
 
                 <ResourceDictionary.MergedDictionaries>
                     <ResourceDictionary Source="pack://application:,,,/AdonisUI;component/ColorSchemes/Dark.xaml" />
@@ -26,74 +30,69 @@
             </ResourceDictionary>
         </Grid.Resources>
 
-        <StackPanel
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <syncfusion:PropertyGrid
+            x:Name="SettingsPropertygrid"
             Grid.Row="0"
-            Margin="25,0,0,0"
+            Margin="0,85,0,0"
+            AutoGeneratingPropertyGridItem="SettingsPropertygrid_OnAutoGeneratingPropertyGridItem"
+            BorderThickness="0"
+            ButtonPanelVisibility="Collapsed"
+            CategoryForeground="{StaticResource WolvenKitRed}"
+            EnableGrouping="True"
+            PropertyNameColumnDefinition="200"
+            SearchBoxVisibility="Collapsed">
+            <!--syncfusion:PropertyGrid.Resources>
+                <Style TargetType="{x:Type propertygrid:PropertyViewItem}" BasedOn="{StaticResource SyncfusionPropertyViewItemStyle}">
+                    <Setter Property="IsCategoryEditorEnabled" Value="False" />
+                </Style>
+            </syncfusion:PropertyGrid.Resources-->
+        </syncfusion:PropertyGrid>
+
+
+        <StackPanel
+            Height="85"
+            Margin="25,0,5,0"
             HorizontalAlignment="Left"
             VerticalAlignment="Top"
             Orientation="Horizontal">
             <StackPanel.Resources>
-                <Style
-                    BasedOn="{StaticResource ButtonDefault}"
-                    TargetType="{x:Type Button}">
-                    <Setter Property="Background" Value="{StaticResource ContentBackgroundAlt}" />
+                <Style BasedOn="{StaticResource ButtonDefault}" TargetType="Button">
                     <Setter Property="BorderThickness" Value="0" />
-                    <Setter Property="Padding" Value="{DynamicResource WolvenKitMarginHorizontal}" />
+                    <Setter Property="Background" Value="{StaticResource ContentBackgroundAlt}" />
+                    <Setter Property="Padding" Value="15,0" />
                 </Style>
             </StackPanel.Resources>
 
             <TextBlock
-                MinWidth="{DynamicResource WolvenKitHomeSharedHeaderWidth}"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
+                FontSize="20"
                 Foreground="White"
-                FontSize="{DynamicResource WolvenKitFontHeader}"
                 Text="Settings" />
-
             <hc:Divider
-                Height="{DynamicResource WolvenKitDividerHeight}"
-                Margin="{DynamicResource WolvenKitMargin}"
+                Height="50"
+                Margin="15"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 Orientation="Vertical" />
 
             <Button
                 x:Name="CheckForUpdatesButton"
-                Height="{DynamicResource WolvenKitHomeSharedButtonHeight}"
-                Margin="{DynamicResource WolvenKitMargin}"
-                CommandParameter="{StaticResource FalseValue}">
-                <StackPanel Orientation="Horizontal">
-                    <iconPacks:PackIconMaterial
-                        Kind="Sync"
-                        Width="{DynamicResource WolvenKitIcon}"
-                        Height="{DynamicResource WolvenKitIcon}"
-                        Foreground="{StaticResource WolvenKitPurple}" />
-
-                    <TextBlock
-                        Padding="{DynamicResource WolvenKitHomeSharedPaddingLeft}"
-                        FontSize="{DynamicResource WolvenKitFontBody}"
-                        Text="Check for updates" />
-                </StackPanel>
+                CommandParameter="{StaticResource FalseValue}"
+                Height="40"
+                Margin="15">
+                <TextBlock FontSize="14" Text="Check for updates" />
             </Button>
 
             <Button
                 x:Name="SaveCloseButton"
-                Height="{DynamicResource WolvenKitHomeSharedButtonHeight}"
-                Margin="{DynamicResource WolvenKitMargin}">
-                <StackPanel Orientation="Horizontal">
-                    <iconPacks:PackIconCodicons
-                        Kind="Save"
-                        Width="{DynamicResource WolvenKitIcon}"
-                        Height="{DynamicResource WolvenKitIcon}"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Center"
-                        Foreground="{StaticResource WolvenKitCyan}" />
-
-                    <TextBlock
-                        Padding="{DynamicResource WolvenKitHomeSharedPaddingLeft}"
-                        FontSize="{DynamicResource WolvenKitFontBody}"
-                        Text="Save &amp; Close" />
-                </StackPanel>
+                Height="40"
+                Margin="0">
+                <TextBlock FontSize="14" Text="Save &amp; Close" />
             </Button>
 
             <!--
@@ -103,28 +102,10 @@
             -->
 
             <!--Button x:Name="ExitRestart" Click="ExitRestart_Click" Margin="15" Height="40">
-                <TextBlock Text="Exit and restart" FontSize="{DynamicResource WolvenKitFontBody}"/>
+                <TextBlock Text="Exit and restart" FontSize="14"/>
             </Button-->
+
         </StackPanel>
 
-        <syncfusion:PropertyGrid
-            x:Name="SettingsPropertygrid"
-            Grid.Row="1"
-            Margin="25,0,25,25"
-            BorderThickness="0"
-            AutoGeneratingPropertyGridItem="SettingsPropertygrid_OnAutoGeneratingPropertyGridItem"
-            UpdateSourceMode="ReturnOrLostFocus"
-            ButtonPanelVisibility="Collapsed"
-            CategoryForeground="{StaticResource WolvenKitRed}"
-            EnableGrouping="True"
-            PropertyNameColumnDefinition="{DynamicResource WolvenKitSettingsGridLabelWidth}"
-            SearchBoxVisibility="Collapsed">
-            <!--syncfusion:PropertyGrid.Resources>
-            <Style TargetType="{x:Type propertygrid:PropertyViewItem}" BasedOn="{StaticResource SyncfusionPropertyViewItemStyle}">
-                <Setter Property="IsCategoryEditorEnabled" Value="False" />
-            </Style>
-            </syncfusion:PropertyGrid.Resources-->
-        </syncfusion:PropertyGrid>
     </Grid>
 </reactiveUi:ReactiveUserControl>
-

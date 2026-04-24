@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,10 +12,10 @@ using WolvenKit.Common.FNV1A;
 using WolvenKit.Common.Services;
 using WolvenKit.Core.Compression;
 using WolvenKit.Core.CRC;
-using WolvenKit.Core.Extensions;
 using WolvenKit.Modkit.RED4;
 using WolvenKit.Modkit.RED4.Sounds;
 using WolvenKit.RED4.Archive;
+using WolvenKit.RED4.Archive.Buffer;
 using WolvenKit.RED4.Archive.IO;
 using WolvenKit.RED4.CR2W;
 using WolvenKit.RED4.TweakDB;
@@ -38,7 +39,7 @@ namespace WolvenKit.Utility
             if (eventsInfo != null)
             {
                 var hash = eventsInfo.Key;
-                var archive = eventsInfo.GetArchive<Archive>();
+                var archive = eventsInfo.Archive as Archive;
 
                 using var originalMemoryStream = new MemoryStream();
                 ModTools.ExtractSingleToStream(archive, hash, originalMemoryStream);
@@ -62,11 +63,10 @@ namespace WolvenKit.Utility
                 var events = eventArray.Events;
                 foreach (var e in events)
                 {
-                    ArgumentNullException.ThrowIfNull(e);
                     var item = new SoundEvent()
                     {
                         Name = e.RedId.ToString(),
-                        Tags = e.Tags.Select(x => x.ToString().NotNull()).ToList(),
+                        Tags = e.Tags.Select(x => x.ToString()).ToList(),
                     };
                     md.Events.Add(item);
                 }
@@ -111,7 +111,7 @@ namespace WolvenKit.Utility
                 Parallel.ForEach(files, file =>
                 {
                     var hash = file.Key;
-                    var archive = file.GetArchive<Archive>();
+                    var archive = file.Archive as Archive;
 
                     try
                     {
@@ -263,11 +263,7 @@ namespace WolvenKit.Utility
                     {
                         continue;
                     }
-                    if (!string.IsNullOrEmpty(str))
-                    {
-                        usedStrings.Add(str);
-                    }
-
+                    usedStrings.Add(str);
                 }
                 usedStrings = usedStrings.OrderBy(x => x).Distinct().ToList();
                 File.WriteAllLines(usedhashtxt, usedStrings);
@@ -305,168 +301,6 @@ namespace WolvenKit.Utility
             File.WriteAllBytes(Path.Combine(resultDir, filename), outBuffer.ToArray());
         }
 
-        public enum Merge
-        {
-            All,
-            Facts,
-            NodeRefs
-        }
-
-        [TestMethod]
-        public void MergeAllStrings() => MergeStrings(Merge.All);
-
-        [TestMethod]
-        public void MergeFactStrings() => MergeStrings(Merge.Facts);
-
-        [TestMethod]
-        public void MergeNodeRefStrings() => MergeStrings(Merge.NodeRefs);
-
-        private void MergeStrings(Merge merge)
-        {
-            ArgumentNullException.ThrowIfNull(s_bm);
-
-            var hashService = _host.Services.GetRequiredService<IHashService>();
-            ArgumentNullException.ThrowIfNull(hashService);
-
-            var resultDir = Path.Combine(Environment.CurrentDirectory, s_testResultsDirectory, "infodump");
-
-            var dict = new ConcurrentDictionary<string, List<string>>();
-            var dict2 = new ConcurrentDictionary<string, byte>();
-
-            Parallel.ForEach(Directory.EnumerateFiles(resultDir, "*.json", SearchOption.AllDirectories), filePath =>
-            {
-                var dc = JsonSerializer.Deserialize<DataCollection>(File.ReadAllText(filePath))!;
-
-                var lst = new HashSet<string>();
-
-                if (merge == Merge.Facts)
-                {
-                    var ext = ERedExtensionHelper.FromString(dc.FileName);
-                    if (ext == ERedExtension.unknown)
-                    {
-                        ext = ERedExtensionHelper.FromString(hashService.GetGuessedExtension(dc.Hash));
-                    }
-
-                    if (ext is ERedExtension.questphase or ERedExtension.scene)
-                    {
-                        DumpFileInfo(dc, lst);
-                    }
-
-                    if (lst.Count > 0)
-                    {
-                        var orderedLst = new List<string>(lst);
-                        orderedLst.Sort();
-
-                        dict.TryAdd(dc.FileName, orderedLst);
-                    }
-                }
-                else
-                {
-                    DumpFileInfo(dc, lst);
-                    foreach (var str in lst)
-                    {
-                        if (str == null)
-                        {
-                            continue;
-                        }
-
-                        dict2.TryAdd(str, 0);
-                    }
-                }
-
-
-            });
-
-            if (merge == Merge.Facts)
-            {
-                var nDict = dict.OrderBy(x => x.Key).ToDictionary(x => x.Key, x => x.Value);
-                File.WriteAllText(Path.Join(resultDir, "facts.json"), JsonSerializer.Serialize(nDict, new JsonSerializerOptions { WriteIndented = true }));
-            }
-            else
-            {
-                var nList = dict2.Keys.ToList();
-                nList.Sort();
-
-                File.WriteAllLines(Path.Join(resultDir, $"merged_{merge}.txt"), nList);
-            }
-
-            void DumpFileInfo(DataCollection dc, HashSet<string> lst)
-            {
-                if (merge == Merge.All)
-                {
-                    if (dc.UnusedStrings != null)
-                    {
-                        foreach (var str in dc.UnusedStrings)
-                        {
-                            lst.Add(str);
-                        }
-                    }
-
-                    if (dc.Imports != null)
-                    {
-                        foreach (var str in dc.Imports)
-                        {
-                            lst.Add(str);
-                        }
-                    }
-
-                    if (dc.UsedStrings != null)
-                    {
-                        foreach (var str in dc.UsedStrings)
-                        {
-                            lst.Add(str);
-                        }
-                    }
-
-                    if (dc.TweakStrings != null)
-                    {
-                        foreach (var str in dc.TweakStrings)
-                        {
-                            lst.Add(str);
-                        }
-                    }
-
-                    if (dc.NodeRefs != null)
-                    {
-                        foreach (var str in dc.NodeRefs)
-                        {
-                            lst.Add(str);
-                        }
-                    }
-                }
-
-                if (merge == Merge.All || merge == Merge.Facts)
-                {
-                    if (dc.FactStrings != null)
-                    {
-                        foreach (var str in dc.FactStrings)
-                        {
-                            lst.Add(str);
-                        }
-                    }
-                }
-
-                if (merge == Merge.All || merge == Merge.NodeRefs)
-                {
-                    if (dc.NodeRefs != null)
-                    {
-                        foreach (var str in dc.NodeRefs)
-                        {
-                            lst.Add(str);
-                        }
-                    }
-                }
-
-                if (dc.Buffers != null)
-                {
-                    foreach (var buffer in dc.Buffers)
-                    {
-                        DumpFileInfo(buffer, lst);
-                    }
-                }
-            }
-        }
-
         [TestMethod]
         public void DumpStrings()
         {
@@ -475,12 +309,10 @@ namespace WolvenKit.Utility
             Directory.CreateDirectory(resultDir);
 
             var existingFiles = new ConcurrentDictionary<string, byte>();
-            foreach (var file in Directory.GetFiles(resultDir, "*.json", SearchOption.AllDirectories))
+            foreach (var file in Directory.GetFiles(resultDir))
             {
                 existingFiles.TryAdd(file, 0);
             }
-
-            var failedFiles = new ConcurrentDictionary<string, byte>();
 
             var archives = s_bm.Archives.KeyValues.Select(_ => _.Value).ToList();
             foreach (var gameArchive in archives)
@@ -490,24 +322,10 @@ namespace WolvenKit.Utility
                     continue;
                 }
 
-                string? dirPath = null;
-                if (archive.ArchiveAbsolutePath.Contains(@"archive\pc\content"))
-                {
-                    dirPath = Path.Combine(resultDir, "content");
-                }
-
-                if (archive.ArchiveAbsolutePath.Contains(@"archive\pc\ep1"))
-                {
-                    dirPath = Path.Combine(resultDir, "ep1");
-                }
-
-                if (string.IsNullOrEmpty(dirPath))
-                {
-                    throw new Exception();
-                }
-
-                dirPath = Path.Combine(dirPath, archive.Name);
+                var dirPath = Path.Combine(resultDir, archive.Name);
                 Directory.CreateDirectory(dirPath);
+
+                archive.SetBulkExtract(true);
 
                 Parallel.ForEach(archive.Files, pair =>
                 {
@@ -525,7 +343,7 @@ namespace WolvenKit.Utility
                     try
                     {
                         using var ms = new MemoryStream();
-                        archive.ExtractFile(fileEntry, ms);
+                        archive.CopyFileToStream(ms, fileEntry.NameHash64, false);
                         ms.Seek(0, SeekOrigin.Begin);
 
                         using var reader = new CR2WReader(ms);
@@ -546,18 +364,12 @@ namespace WolvenKit.Utility
                     }
                     catch (Exception)
                     {
-                        failedFiles.TryAdd(fileEntry.NameOrHash, 0);
                         // ignore
                     }
                 });
 
-                archive.ReleaseFileHandle();
+                archive.SetBulkExtract(false);
             }
-
-            var lst = failedFiles.Keys.ToList();
-            lst.Sort();
-
-            File.WriteAllLines(Path.Join(resultDir, "failed.txt"), lst);
         }
 
         [TestMethod]
@@ -576,6 +388,7 @@ namespace WolvenKit.Utility
 
             var stringHelper = new TweakDBStringHelper();
             stringHelper.Load(tweakDbStrPath);
+            TweakDBIDPool.ResolveHashHandler = stringHelper.GetString;
 
             using var fh = File.OpenRead(s_tweakDbPath);
             using var reader2 = new TweakDBReader(fh);
@@ -584,17 +397,17 @@ namespace WolvenKit.Utility
             {
                 return;
             }
-            ArgumentNullException.ThrowIfNull(tweakDb);
+
             var ass = typeof(gamedataTweakDBRecord).Assembly;
 
             var rts = new Dictionary<string, Dictionary<string, string>>();
             foreach (var (id, value) in tweakDb.Flats)
             {
-                if (stringHelper.GetString(id) is { } resolvedText)
+                if (id.ResolvedText != null)
                 {
-                    if (resolvedText.StartsWith("RTDB"))
+                    if (id.ResolvedText.StartsWith("RTDB"))
                     {
-                        var parts = resolvedText.Split('.');
+                        var parts = id.ResolvedText.Split('.');
 
                         var className = $"gamedata{parts[1]}_Record";
                         if (!rts.ContainsKey(className))
@@ -727,7 +540,7 @@ namespace WolvenKit.Utility
                 Parallel.ForEach(files, file =>
                 {
                     var hash = file.Key;
-                    var archive = file.GetArchive<Archive>();
+                    var archive = file.Archive as Archive;
 
                     try
                     {

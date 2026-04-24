@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Splat.Microsoft.Extensions.DependencyInjection;
 using WolvenKit.CLI.Services;
 using WolvenKit.Common;
 using WolvenKit.Common.Interfaces;
@@ -51,8 +52,6 @@ internal static class GenericHost
                 services.AddSingleton<ITweakDBService, TweakDBService>();
                 services.AddSingleton<ILocKeyService, LocKeyService>();
 
-                services.AddSingleton<IHookService, HookService>();
-
                 //services.AddScoped<TweakDBService>();
                 services.AddScoped<Red4ParserService>();
                 services.AddScoped<MeshTools>();        //RIG, Cp77FileService
@@ -73,6 +72,8 @@ internal static class GenericHost
                 services.AddOptions<WemExportArgs>().Bind(hostContext.Configuration.GetSection("WemExportArgs"));
 
                 services.AddScoped<ConsoleFunctions>();
+
+                services.UseMicrosoftDependencyResolver();
             }
         );
     }

@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using WolvenKit.Core.Extensions;
 
 namespace WolvenKit.Common.Extensions
 {
@@ -11,7 +10,7 @@ namespace WolvenKit.Common.Extensions
             try
             {
                 var did = Path.GetDirectoryName(destinationpath);
-                Directory.CreateDirectory(did.NotNull());
+                Directory.CreateDirectory(did);
                 fi.CopyTo(destinationpath, overwrite);
             }
             catch (Exception)
@@ -19,6 +18,8 @@ namespace WolvenKit.Common.Extensions
                 throw;
             }
         }
+
+        public static DirectoryInfo GetParent(this FileSystemInfo fsi) => fsi.IsDirectory() ? (fsi as DirectoryInfo).Parent : (fsi as FileInfo).Directory;
 
         public static bool IsDirectory(this FileSystemInfo fsi)
         {

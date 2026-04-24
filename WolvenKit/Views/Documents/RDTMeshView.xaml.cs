@@ -1,14 +1,9 @@
-using System;
 using System.Reactive.Disposables;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
-using HelixToolkit.SharpDX.Core;
 using ReactiveUI;
 using Syncfusion.UI.Xaml.TreeGrid;
-using WolvenKit.App.Services;
-using WolvenKit.App.ViewModels.Documents;
-using WolvenKit.RED4.Types;
+using WolvenKit.ViewModels.Documents;
 
 namespace WolvenKit.Views.Documents
 {
@@ -33,83 +28,18 @@ namespace WolvenKit.Views.Documents
 
             this.WhenActivated(disposables =>
             {
-                HandleActivation();
-
-                Disposable
-                    .Create(HandleDeactivation)
-                    .DisposeWith(disposables);
+                if (DataContext is RDTMeshViewModel vm)
+                {
+                    SetCurrentValue(ViewModelProperty, vm);
+                    hxViewport.MouseDown3D += vm.MouseDown3D;
+                }
 
                 this.OneWayBind(ViewModel,
                         viewModel => viewModel.SelectedAppearance.ModelGroup,
                         view => view.hxContentVisual.ItemsSource)
                     .DisposeWith(disposables);
+            
             });
-        }
-
-        private void HandleActivation()
-        {
-            if (DataContext is RDTMeshViewModel vm)
-            {
-                SetCurrentValue(ViewModelProperty, vm);
-                if (vm.EffectsManager == null || vm.EffectsManager.IsDisposed)
-                {
-                    vm.EffectsManager = new DefaultEffectsManager();
-                }
-                hxViewport.MouseDown3D += vm.MouseDown3D;
-            }
-
-            if (!ReferenceEquals(hxContentVisual.DataContext, DataContext))
-            {
-                ViewModel.SelectedAppearance?.ModelGroup.RemoveSelf();
-            }
-        }
-
-        private void HandleDeactivation()
-        {
-            if (ViewModel is { } vm)
-            {
-                vm.EffectsManager?.Dispose();
-            }
-        }
-
-        protected override void OnKeyDown(KeyEventArgs e)
-        {
-            base.OnKeyDown(e);
-
-            if (ViewModel is null)
-            {
-                return;
-            }
-
-            if (e.Key is Key.LeftCtrl or Key.RightCtrl)
-            {
-                ViewModel.CtrlKeyPressed = true;
-            }
-
-            if (e.Key is Key.LeftShift or Key.RightShift)
-            {
-                ViewModel.ShiftKeyPressed = true;
-            }
-        }
-
-        protected override void OnKeyUp(KeyEventArgs e)
-        {
-            base.OnKeyUp(e);
-
-            if (ViewModel is null)
-            {
-                return;
-            }
-
-            if (ViewModel.CtrlKeyPressed && e.Key is Key.LeftCtrl or Key.RightCtrl)
-            {
-                ViewModel.CtrlKeyPressed = false;
-            }
-
-            if (ViewModel.ShiftKeyPressed && e.Key is Key.LeftShift or Key.RightShift)
-            {
-                ViewModel.ShiftKeyPressed = false;
-            }
         }
 
         private void HxViewport_MouseDown3D(object sender, RoutedEventArgs e) => throw new System.NotImplementedException();
@@ -126,35 +56,6 @@ namespace WolvenKit.Views.Documents
             //if (ViewModel != null)
             //    ShowAppearance(ViewModel.SelectedAppearance, true);
             ////LoadModels(ViewModel.SelectedAppearance);
-        }
-
-        private void CollapseAllChildrenRecursiveMenuItem_OnClick(object sender, RoutedEventArgs e) => 
-            _currentNode?.TreeGrid.CollapseAllNodes(_currentNode.TreeNode);
-
-        private void CopyComponentNameMenuItem_OnClick(object sender, RoutedEventArgs e)
-        {
-            if (_currentNode?.TreeNode is not { } treeNode || treeNode.Item is not IRedMeshComponent comp ||
-                comp.Name.GetResolvedText() is not string s)
-            {
-                return;
-            }
-
-            Clipboard.SetDataObject(s);
-        }
-
-        private void ExpandAllChildrenRecursiveMenuItem_OnClick(object sender, RoutedEventArgs e) =>
-            _currentNode?.TreeGrid.ExpandAllNodes(_currentNode.TreeNode);
-
-        private void CollapseStateAllChildren(TreeNodes nodes, bool state, bool recursive)
-        {
-            foreach (var node in nodes)
-            {
-                node.IsExpanded = state;
-                if (recursive && node.HasChildNodes)
-                {
-                    CollapseStateAllChildren(node.ChildNodes, state, true);
-                }
-            }
         }
 
         private void CheckAllChildrenMenuItem_OnClick(object sender, RoutedEventArgs e)
@@ -209,11 +110,5 @@ namespace WolvenKit.Views.Documents
                 _currentNode = info;
             }
         }
-
-        private void Viewport3DX_Loaded(object sender, RoutedEventArgs e)
-        {
-            ViewModel?.SelectWorldNode();
-        }
     }
-    
 }

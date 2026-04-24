@@ -3,7 +3,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using ReactiveUI;
-using WolvenKit.App.ViewModels.Shell;
 using WolvenKit.RED4.Types;
 
 namespace WolvenKit.Views.Editors
@@ -13,8 +12,6 @@ namespace WolvenKit.Views.Editors
     /// </summary>
     public partial class RedColorEditor : UserControl
     {
-        private ChunkViewModel _cvm => DataContext as ChunkViewModel;
-
         public RedColorEditor()
         {
             InitializeComponent();
@@ -46,9 +43,6 @@ namespace WolvenKit.Views.Editors
             RedColor.Red = mediaColor.R;
             RedColor.Green = mediaColor.G;
             RedColor.Blue = mediaColor.B;
-
-            _cvm.NotifyChain(nameof(ChunkViewModel.Data));
-            _cvm.RecalculateProperties();
         }
 
         private void SetRedValue(Color value)

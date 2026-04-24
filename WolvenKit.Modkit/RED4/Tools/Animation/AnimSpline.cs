@@ -1,55 +1,58 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using System.Text.Json;
 using SharpGLTF.Schema2;
-
-using WolvenKit.Core.Interfaces;
 using WolvenKit.RED4.Types;
-
-using Quat = System.Numerics.Quaternion;
-using Vec3 = System.Numerics.Vector3;
-
-using static WolvenKit.RED4.Types.Enums;
-using static WolvenKit.Modkit.RED4.Animation.Fun;
-using static WolvenKit.Modkit.RED4.Animation.Gltf;
-
-using JointsTranslationsAtTimes = System.Collections.Generic.Dictionary<ushort, System.Collections.Generic.Dictionary<float, System.Numerics.Vector3>>;
-using JointsRotationsAtTimes = System.Collections.Generic.Dictionary<ushort, System.Collections.Generic.Dictionary<float, System.Numerics.Quaternion>>;
-using JointsScalesAtTimes = System.Collections.Generic.Dictionary<ushort, System.Collections.Generic.Dictionary<float, System.Numerics.Vector3>>;
-
 
 namespace WolvenKit.Modkit.RED4.Animation
 {
-    internal class CompressedBuffer
+    using Quat = System.Numerics.Quaternion;
+    using Vec3 = System.Numerics.Vector3;
+
+    public class CompressedBuffer
     {
-#region export
-        internal static void DecodeAnimationData(out AnimationBufferData result, animAnimation animAnimDes, ILoggerService _loggerService)
+        public static Vec3 TRVector(float x, float y, float z)
         {
-            if (animAnimDes.AnimBuffer.GetValue() is not animAnimationBufferCompressed animBuf)
+            return new Vec3(x, z, -y);
+        }
+
+        public static Quat RQuat(float x, float y, float z, float w)
+        {
+            return new Quat(x, z, -y, w);
+        }
+
+        public static Vec3 SVector(float x, float y, float z)
+        {
+            return new Vec3(x, z, y);
+        }
+
+        public static void AddAnimation(ref ModelRoot model, animAnimation animAnimDes,bool incRootMotion = true)
+        {
+            var blob = animAnimDes.AnimBuffer.GetValue() as animAnimationBufferCompressed;
+            blob.ReadBuffer();
+
+            //boneidx time value
+            var positions = new Dictionary<ushort, Dictionary<float, Vec3>>();
+            var rotations = new Dictionary<ushort, Dictionary<float, Quat>>();
+            var scales = new Dictionary<ushort, Dictionary<float, Vec3>>();
+
+            var tracks = new Dictionary<ushort, float>();
+
+            if (animAnimDes.MotionExtraction != null && animAnimDes.MotionExtraction.Chunk != null && incRootMotion)
             {
-                throw new ArgumentNullException();
+                ROOT_MOTION.AddRootMotion(ref positions, ref rotations, animAnimDes);
             }
-            animBuf.ReadBuffer();
 
-            var translations = new JointsTranslationsAtTimes();
-            var rotations = new JointsRotationsAtTimes();
-            var scales = new JointsScalesAtTimes();
-
-            var constTranslations = new JointsTranslationsAtTimes();
-            var constRotations = new JointsRotationsAtTimes();
-            var constScales = new JointsScalesAtTimes();
-
-
-            foreach (var key in animBuf.AnimKeys)
+            foreach (var key in blob.AnimKeys)
             {
                 if (key is animKeyPosition p)
                 {
-                    if (!translations.ContainsKey(p.Idx))
+                    if (!positions.ContainsKey(p.Idx))
                     {
-                        translations[p.Idx] = new Dictionary<float, Vec3>();
+                        positions[p.Idx] = new Dictionary<float, Vec3>();
                     }
-                    translations[p.Idx][p.Time] = TRVectorYupRhs(p.Position);
+                    positions[p.Idx][p.Time] = TRVector(p.Position.X, p.Position.Y, p.Position.Z);
                 }
                 else if (key is animKeyRotation r)
                 {
@@ -57,7 +60,7 @@ namespace WolvenKit.Modkit.RED4.Animation
                     {
                         rotations[r.Idx] = new Dictionary<float, Quat>();
                     }
-                    rotations[r.Idx][r.Time] = RQuaternionNormalize(RQuaternionYupRhs(r.Rotation));
+                    rotations[r.Idx][r.Time] = RQuat(r.Rotation.I, r.Rotation.J, r.Rotation.K, r.Rotation.R);
                 }
                 else if (key is animKeyScale s)
                 {
@@ -65,19 +68,19 @@ namespace WolvenKit.Modkit.RED4.Animation
                     {
                         scales[s.Idx] = new Dictionary<float, Vec3>();
                     }
-                    scales[s.Idx][s.Time] = SVectorNormalize(SVectorYupRhs(s.Scale));
+                    scales[s.Idx][s.Time] = SVector(s.Scale.X, s.Scale.Y, s.Scale.Z);
                 }
             }
 
-            foreach (var key in animBuf.AnimKeysRaw)
+            foreach (var key in blob.AnimKeysRaw)
             {
                 if (key is animKeyPosition p)
                 {
-                    if (!translations.ContainsKey(p.Idx))
+                    if (!positions.ContainsKey(p.Idx))
                     {
-                        translations[p.Idx] = new Dictionary<float, Vec3>();
+                        positions[p.Idx] = new Dictionary<float, Vec3>();
                     }
-                    translations[p.Idx][p.Time] = TRVectorYupRhs(p.Position);
+                    positions[p.Idx][p.Time] = TRVector(p.Position.X, p.Position.Y, p.Position.Z);
                 }
                 else if (key is animKeyRotation r)
                 {
@@ -85,7 +88,7 @@ namespace WolvenKit.Modkit.RED4.Animation
                     {
                         rotations[r.Idx] = new Dictionary<float, Quat>();
                     }
-                    rotations[r.Idx][r.Time] = RQuaternionNormalize(RQuaternionYupRhs(r.Rotation));
+                    rotations[r.Idx][r.Time] = RQuat(r.Rotation.I, r.Rotation.J, r.Rotation.K, r.Rotation.R);
                 }
                 else if (key is animKeyScale s)
                 {
@@ -93,181 +96,93 @@ namespace WolvenKit.Modkit.RED4.Animation
                     {
                         scales[s.Idx] = new Dictionary<float, Vec3>();
                     }
-                    scales[s.Idx][s.Time] = SVectorNormalize(SVectorYupRhs(s.Scale));
+                    scales[s.Idx][s.Time] = SVector(s.Scale.X, s.Scale.Y, s.Scale.Z);
                 }
             }
 
-            foreach (var key in animBuf.ConstAnimKeys)
+            foreach (var key in blob.ConstAnimKeys)
             {
+                // using x.Time here causes some problems - not sure what data it actually is. maybe a hold time?
                 if (key is animKeyPosition p)
                 {
-                    if (!constTranslations.ContainsKey(p.Idx))
+                    if (!positions.ContainsKey(p.Idx))
                     {
-                        constTranslations[p.Idx] = [];
+                        positions[p.Idx] = new Dictionary<float, Vec3>();
                     }
-                    constTranslations[p.Idx][p.Time] = TRVectorYupRhs(p.Position);
+                    positions[p.Idx][0] = TRVector(p.Position.X, p.Position.Y, p.Position.Z);
                 }
                 else if (key is animKeyRotation r)
                 {
-                    if (!constRotations.ContainsKey(r.Idx))
+                    if (!rotations.ContainsKey(r.Idx))
                     {
-                        constRotations[r.Idx] = [];
+                        rotations[r.Idx] = new Dictionary<float, Quat>();
                     }
-                    constRotations[r.Idx][r.Time] = RQuaternionNormalize(RQuaternionYupRhs(r.Rotation));
+                    rotations[r.Idx][0] = RQuat(r.Rotation.I, r.Rotation.J, r.Rotation.K, r.Rotation.R);
                 }
                 else if (key is animKeyScale s)
                 {
-                    if (!constScales.ContainsKey(s.Idx))
+                    if (!scales.ContainsKey(s.Idx))
                     {
-                        constScales[s.Idx] = [];
+                        scales[s.Idx] = new Dictionary<float, Vec3>();
                     }
-                    constScales[s.Idx][s.Time] = SVectorNormalize(SVectorYupRhs(s.Scale));
+                    scales[s.Idx][0] = SVector(s.Scale.X, s.Scale.Y, s.Scale.Z);
                 }
             }
 
-            result = new AnimationBufferData {
-                Duration = animBuf.Duration,
-                FrameCount = animBuf.NumFrames,
-                Translations = translations,
-                ConstTranslations = constTranslations,
-                Rotations = rotations,
-                ConstRotations = constRotations,
-                Scales = scales,
-                ConstScales = constScales,
-                TrackKeys = animBuf.TrackKeys.Select(_ => new AnimTrackKeySerializable(_.TrackIndex, _.Time, _.Value)).ToList(),
-                ConstTrackKeys = animBuf.ConstTrackKeys.Select(_ => new AnimConstTrackKeySerializable(_.TrackIndex, _.Time, _.Value)).ToList(),
-                FallbackFrameIndices = animBuf.FallbackFrameIndices.Select(_ => (ushort)_).ToList(),
-                NumJoints = animBuf.NumJoints,
-                NumExtraJoints = animBuf.NumExtraJoints,
-                JointsCountActual = Convert.ToUInt16(animBuf.NumJoints - animBuf.NumExtraJoints),
-                NumTracks = animBuf.NumTracks,
-                NumExtraTracks = animBuf.NumExtraTracks,
-                TracksCountActual = Convert.ToUInt16(animBuf.NumTracks - animBuf.NumExtraTracks),
-                IsSimd = false,
-                CompressionUsed =
-                    animBuf.HasRawRotations
-                    ? AnimationCompression.Uncompressed
-                    : AnimationCompression.QuaternionAsFixed3x16bit
-            };
-        }
+            var anim = model.CreateAnimation(animAnimDes.Name);
+            var skin = model.LogicalSkins.FirstOrDefault(_ => _.Name is "Armature");
 
-#endregion export
-#region import
-        internal static void EncodeAnimationData(out animAnimDataChunk newAnimDataChunk, out animAnimationBufferCompressed newCompressedBuffer, ref readonly AnimationBufferData incomingAnimBufferData, animAnimDataAddress chunkDataAddress, ILoggerService _loggerService)
-        {
-            var constAnimKeys = new List<animKey?>();
-            var animKeys = new List<animKey?>();
-            var animKeysRaw = new List<animKey?>();
-
-            var rotationCompressionAllowed = incomingAnimBufferData.CompressionUsed != AnimationCompression.Uncompressed;
-
-            for (ushort jointIdx = 0; jointIdx < incomingAnimBufferData.JointsCountActual; ++jointIdx)
+            if (animAnimDes.AnimationType == Enums.animAnimationType.Additive)
             {
-                // Const (non-interpolated) keyframes are all similarly encoded, S, R and T
-                
-                // TODO https://github.com/WolvenKit/WolvenKit/issues/1661
-                //      Warn on failing sanity checks like no 0 timestamp for const keyframes.
-                //      There's probably a bunch of possible additional warnings we can raise.
 
-                foreach (var (time, translation) in incomingAnimBufferData.ConstTranslations.GetValueOrDefault(jointIdx, []))
+                for (ushort i = 0; i < blob.NumJoints - blob.NumExtraJoints; i++)
                 {
-                    constAnimKeys.Add(new animKeyPosition() { Idx = jointIdx, Time = time, Position = TRVectorZupLhs(translation), });
-                }
-
-                foreach (var (time, rotation) in incomingAnimBufferData.ConstRotations.GetValueOrDefault(jointIdx, []))
-                {
-                    constAnimKeys.Add(new animKeyRotation() { Idx = jointIdx, Time = time, Rotation = RQuaternionZupLhs(rotation), });
-                }
-
-                foreach (var (time, scale) in incomingAnimBufferData.ConstScales.GetValueOrDefault(jointIdx, []))
-                {
-                    constAnimKeys.Add(new animKeyScale() { Idx = jointIdx, Time = time, Scale = SVectorZupLhs(scale), });
-                }
-
-                // For linear keyframes, T and S are essentially always* 'raw', i.e. uncompressed...
-                // * Not strictly true
-
-                foreach (var (time, translation) in incomingAnimBufferData.Translations.GetValueOrDefault(jointIdx, []))
-                {
-                    animKeysRaw.Add(new animKeyPosition() { Idx = jointIdx, Time = time, Position = TRVectorZupLhs( translation ), });
-                }
-
-                foreach (var (time, scale) in incomingAnimBufferData.Scales.GetValueOrDefault(jointIdx, []))
-                {
-                    animKeysRaw.Add(new animKeyScale() { Idx = jointIdx, Time = time, Scale = SVectorZupLhs(scale), });
-                }
-
-                // ...but R can optionally be compressed
-                var preferredStorage = rotationCompressionAllowed ? animKeys : animKeysRaw;
-
-                foreach (var (time, rotation) in incomingAnimBufferData.Rotations.GetValueOrDefault(jointIdx, []))
-                {
-                    preferredStorage.Add(new animKeyRotation() { Idx = jointIdx, Time = time, Rotation = RQuaternionZupLhs(rotation), });
+                    var node = skin.GetJoint(i).Joint;
+                    if (positions.ContainsKey(i))
+                    {
+                        foreach (var (t, position) in positions[i])
+                        {
+                            positions[i][t] = node.LocalTransform.Translation + position;
+                        }
+                        anim.CreateTranslationChannel(node, positions[i]);
+                    }
+                    if (rotations.ContainsKey(i))
+                    {
+                        foreach (var (t, rotation) in rotations[i])
+                        {
+                            rotations[i][t] = node.LocalTransform.Rotation * rotation;
+                        }
+                        anim.CreateRotationChannel(node, rotations[i]);
+                    }
+                    if (scales.ContainsKey(i))
+                    {
+                        foreach (var (t, scale) in scales[i])
+                        {
+                            scales[i][t] = node.LocalTransform.Scale + scale;
+                        }
+                        anim.CreateScaleChannel(node, scales[i]);
+                    }
                 }
             }
-
-            var fallbackIndices = incomingAnimBufferData.FallbackFrameIndices.Select(_ =>
-                (CUInt16)_).ToList();
-
-            // These must be nullable for carray init -.-
-            var constTrackKeys = incomingAnimBufferData.ConstTrackKeys.Select<AnimConstTrackKeySerializable, animKeyTrack?>(_ =>
-                new animKeyTrack() { TrackIndex = _.TrackIndex, Time = _.Time, Value = _.Value, }).ToList();
-
-            var trackKeys = incomingAnimBufferData.TrackKeys.Select<AnimTrackKeySerializable, animKeyTrack?>(_ =>
-                new animKeyTrack() { TrackIndex = _.TrackIndex, Time = _.Time, Value = _.Value, }).ToList();
-
-            // There's three ways 'constant scale' could be understood:
-            //
-            // 1. Every joint maintains uniform scale, i.e. 1:1
-            // 2. Every joint maintains same scale S throughout anim
-            // 3. Each joint  maintains separate scale S' throughout anim
-            //
-            // Using the first definition here.
-            //
-            var allScalesUniform1to1 =
-                ((List<JointsScalesAtTimes>)[incomingAnimBufferData.Scales, incomingAnimBufferData.ConstScales]).All(_ =>
-                    _.All(_ => _.Value.All(_ => EqWithEpsilon(_.Value, Scale1to1))));
-
-            newCompressedBuffer = new animAnimationBufferCompressed()
+            else
             {
-                Duration = incomingAnimBufferData.Duration,
-                NumFrames = incomingAnimBufferData.FrameCount,
-                NumExtraJoints = incomingAnimBufferData.NumExtraJoints,
-                NumExtraTracks = incomingAnimBufferData.NumExtraTracks,
-                NumJoints = incomingAnimBufferData.NumJoints,
-                NumTracks = incomingAnimBufferData.NumTracks,
-                NumConstAnimKeys = Convert.ToUInt32(constAnimKeys.Count),
-                NumAnimKeysRaw = Convert.ToUInt32(animKeysRaw.Count),
-                NumAnimKeys = Convert.ToUInt32(animKeys.Count),
-                NumConstTrackKeys = Convert.ToUInt32(constTrackKeys.Count),
-                NumTrackKeys = Convert.ToUInt32(trackKeys.Count),
-                IsScaleConstant = allScalesUniform1to1,
-                HasRawRotations = !rotationCompressionAllowed,
-
-                FallbackFrameIndices = new CArray<CUInt16>(fallbackIndices),
-
-                DataAddress = chunkDataAddress,
-
-                // These are internal only, they'll be packed into a buffer...
-                ConstAnimKeys = new(constAnimKeys),
-                AnimKeysRaw = new(animKeysRaw),
-                AnimKeys = new(animKeys),
-
-                ConstTrackKeys = new(constTrackKeys),
-                TrackKeys = new(trackKeys),
-
-                TempBuffer = new(),
-            };
-
-            // ...specifically TempBuffer, here.
-            newCompressedBuffer.WriteBuffer();
-
-            // And bookkeeping
-            newCompressedBuffer.DataAddress.ZeInBytes = newCompressedBuffer.TempBuffer.Buffer.MemSize;
-
-            newAnimDataChunk = new() { Buffer = new SerializationDeferredDataBuffer(newCompressedBuffer.TempBuffer.Buffer.GetBytes()) };
+                for (ushort i = 0; i < blob.NumJoints - blob.NumExtraJoints; i++)
+                {
+                    var node = skin.GetJoint(i).Joint;
+                    if (positions.ContainsKey(i))
+                    {
+                        anim.CreateTranslationChannel(node, positions[i]);
+                    }
+                    if (rotations.ContainsKey(i))
+                    {
+                        anim.CreateRotationChannel(node, rotations[i]);
+                    }
+                    if (scales.ContainsKey(i))
+                    {
+                        anim.CreateScaleChannel(node, scales[i]);
+                    }
+                }
+            }
         }
-#endregion import
-
     }
 }

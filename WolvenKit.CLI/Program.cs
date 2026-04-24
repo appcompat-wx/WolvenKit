@@ -5,10 +5,8 @@ using System.CommandLine.Hosting;
 using System.CommandLine.Parsing;
 using CP77Tools.Commands;
 using CP77Tools.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using WolvenKit.Common;
+using Microsoft.Build.Framework;
 using WolvenKit.Common.Model.Arguments;
-using WolvenKit.Common.Services;
 using WolvenKit.Core.Compression;
 
 namespace WolvenKit.CLI;
@@ -29,17 +27,6 @@ internal class Program
             return ConsoleFunctions.ERROR_GENERAL_ERROR;
         }
 
-        if (!Core.CommonFunctions.AreLongPathsEnabled())
-        {
-            // TODO: Use logger for that. Tried it as middleware but doesn't get called at all then -.-
-            var text = "Long path support is disabled in your OS!" + Environment.NewLine +
-                       "Please do so to ensure that WolvenKit works properly." + Environment.NewLine + Environment.NewLine +
-                       "For more informations:" + Environment.NewLine +
-                       "https://wiki.redmodding.org/wolvenkit/help/faq/long-file-path-support" + Environment.NewLine + Environment.NewLine;
-
-            Console.Error.Write(text);
-        }
-
         var rootCommand = new RootCommand
         {
             new ArchiveCommand(),
@@ -49,7 +36,6 @@ internal class Program
             new ImportCommand(),
             new ExportCommand(),
             new PackCommand(),
-            new BuildCommand(),
 
             new ConvertCommand(),
             new ConflictsCommand(),

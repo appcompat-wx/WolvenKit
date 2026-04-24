@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using ProtoBuf.Meta;
 using Serilog;
 using Splat;
 using Splat.Microsoft.Extensions.DependencyInjection;
@@ -27,7 +28,7 @@ namespace WolvenKit.Utility
     public class GameUnitTest
     {
         internal const string s_testResultsDirectory = "_CR2WTestResults";
-        internal static Dictionary<string, IEnumerable<IGameFile>> s_groupedFiles = new();
+        internal static Dictionary<string, IEnumerable<FileEntry>> s_groupedFiles = new();
         internal static IArchiveManager? s_bm;
         internal static string? s_tweakDbPath;
         internal static bool s_writeToFile;
@@ -38,13 +39,12 @@ namespace WolvenKit.Utility
         internal static IHost _host = Host.CreateDefaultBuilder()
                 .ConfigureServices((_, services) =>
                     services
-                        .AddSingleton<ILoggerService, SerilogWrapper>()
-                        .AddSingleton<IProgressService<double>, ProgressService<double>>()
+                        .AddScoped<ILoggerService, SerilogWrapper>()
+                        .AddScoped<IProgressService<double>, ProgressService<double>>()
                         .AddSingleton<IHashService, HashService>()
                         .AddSingleton<ITweakDBService, TweakDBService>()
 
-                        .AddSingleton<IHookService, HookService>()
-                        .AddSingleton<Red4ParserService>()
+                        .AddScoped<Red4ParserService>()
                         .AddScoped<MeshTools>()
                         .AddSingleton<IArchiveManager, ArchiveManager>()
                         .AddSingleton<IModTools, ModTools>()
@@ -115,27 +115,26 @@ namespace WolvenKit.Utility
 
             if (!Oodle.Load())
             {
-                Assert.Fail($"Could not load {Core.Constants.Oodle}.");
+                Assert.Fail("Could not load oo2ext_7_win64.dll.");
             }
 
             #endregion
 
             //protobuf
-            //RuntimeTypeModel.Default[typeof(IGameArchive)].AddSubType(20, typeof(Archive));
+            RuntimeTypeModel.Default[typeof(IGameArchive)].AddSubType(20, typeof(Archive));
 
 
-            Locator.CurrentMutable.RegisterConstant(
-                new TweakDBService(_host.Services.GetRequiredService<IHashService>()), typeof(ITweakDBService));
+            Locator.CurrentMutable.RegisterConstant(new TweakDBService(), typeof(ITweakDBService));
 
-            s_tweakDbPath = Path.Combine(gameDirectory.FullName, "r6", "cache", "tweakdb_ep1.bin");
+            s_tweakDbPath = Path.Combine(gameDirectory.FullName, "r6", "cache", "tweakdb.bin");
             //var tweakService = _host.Services.GetRequiredService<ITweakDBService>();
             //tweakService.LoadDB(s_tweakDbPath);
 
             s_bm = _host.Services.GetRequiredService<IArchiveManager>();
 
-            var exePath = new FileInfo(Path.Combine(gameDirectory.FullName, "bin", "x64", "Cyberpunk2077.exe"));
-            s_bm.LoadGameArchives(exePath);
-            s_groupedFiles = s_bm.GetGroupedFiles(ArchiveManagerScope.Basegame);
+            var archivedir = new DirectoryInfo(Path.Combine(gameDirectory.FullName, "archive", "pc", "content"));
+            s_bm.LoadFromFolder(archivedir);
+            s_groupedFiles = s_bm.GetGroupedFiles();
 
             var keyes = s_groupedFiles.Keys.ToList();
             var keystring = string.Join(',', keyes);

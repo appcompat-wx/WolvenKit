@@ -1,114 +1,112 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using CommunityToolkit.Mvvm.ComponentModel;
+using Splat;
+using WolvenKit.Core.Interfaces;
 using WolvenKit.RED4.CR2W;
 using WolvenKit.RED4.Types;
 
 namespace WolvenKit.Common.Services
 {
-    public partial class LocKeyService : ObservableObject, ILocKeyService
+    public class LocKeyService : ILocKeyService
     {
-        private readonly Dictionary<EGameLanguage, Dictionary<ulong, localizationPersistenceOnScreenEntry>> _primaryKeys = new();
+        private readonly Dictionary<string, Dictionary<ulong, localizationPersistenceOnScreenEntry>> _primaryKeys = new();
+        private readonly Dictionary<string, Dictionary<string, localizationPersistenceOnScreenEntry>> _secondaryKeys = new();
 
         private readonly Red4ParserService _parser;
         private readonly IArchiveManager _archive;
 
-        [ObservableProperty] 
-        private EGameLanguage _language = EGameLanguage.en_us;
+        public string Language { get; set; } = "en-us";
 
-        public LocKeyService(Red4ParserService parser, IArchiveManager archive)
+        public LocKeyService()
         {
-            _parser = parser;
-            _archive = archive;
+            _parser = Locator.Current.GetService<Red4ParserService>();
+            _archive = Locator.Current.GetService<IArchiveManager>();
+            //_archive.WhenAnyValue(x => x.IsManagerLoaded).Subscribe(x =>
+            //{
+            //    if (x)
+            //    {
+            //        LoadCurrentLanguage();
+            //    }
+            //});
         }
 
-        public bool LoadCurrentLanguage() => LoadLanguage(Language);
+        public void LoadCurrentLanguage() => (_primaryKeys[Language], _secondaryKeys[Language]) = Load("base\\localization\\en-us\\onscreens\\onscreens_final.json");
 
-        public bool LoadLanguage(EGameLanguage language)
+        public (Dictionary<ulong, localizationPersistenceOnScreenEntry>,
+            Dictionary<string, localizationPersistenceOnScreenEntry>)
+            Load(CName depotPath)
         {
-            var gameLanguageCode = Language.ToString().Replace('_', '-');
-
-            _primaryKeys[language] = new Dictionary<ulong, localizationPersistenceOnScreenEntry>();
-
-            var success = InternalLoadLanguage($@"base\localization\{gameLanguageCode}\onscreens\onscreens_final.json");
-            InternalLoadLanguage($@"ep1\localization\{gameLanguageCode}\onscreens\onscreens_final.json");
-
-            return success;
-
-            bool InternalLoadLanguage(ResourcePath depotPath)
+            var primary = new Dictionary<ulong, localizationPersistenceOnScreenEntry>();
+            var secondary = new Dictionary<string, localizationPersistenceOnScreenEntry>();
+            var file = _archive.Lookup(depotPath.GetRedHash());
+            if (file.HasValue && file.Value is IGameFile fe)
             {
-                var file = _archive.Lookup(depotPath.GetRedHash());
-                if (file is { HasValue: true, Value: { } fe })
+                using var stream = new MemoryStream();
+                fe.Extract(stream);
+                using var reader = new BinaryReader(stream);
+                var cr2wFile = _parser.ReadRed4File(reader);
+
+                if (cr2wFile.RootChunk is JsonResource json)
                 {
-                    using var stream = new MemoryStream();
-                    fe.Extract(stream);
-                    using var reader = new BinaryReader(stream);
-                    var cr2wFile = _parser.ReadRed4File(reader);
-
-                    if (cr2wFile?.RootChunk is JsonResource json)
+                    if (json.Root.Chunk is localizationPersistenceOnScreenEntries os)
                     {
-                        if (json.Root.Chunk is localizationPersistenceOnScreenEntries os)
+                        foreach (var entry in os.Entries)
                         {
-                            foreach (var entry in os.Entries)
+                            primary[entry.PrimaryKey] = entry;
+                            if ((string)entry.SecondaryKey is not null)
                             {
-                                _primaryKeys[language][entry.PrimaryKey] = entry;
+                                secondary[entry.SecondaryKey] = entry;
                             }
-
-                            return true;
                         }
                     }
                 }
-                return false;
             }
+            return (primary, secondary);
         }
-
-        private bool IsLoaded() => _primaryKeys.ContainsKey(Language) || LoadCurrentLanguage();
 
         public List<string> GetSecondaryKeys()
         {
-            if (!IsLoaded())
+            if (!_secondaryKeys.ContainsKey(Language))
             {
-                return new List<string>();
+                LoadCurrentLanguage();
             }
-            return _primaryKeys[Language].Values.Select(x => x.SecondaryKey.GetString()).ToList();
+            return _secondaryKeys[Language].Keys.ToList();
         }
 
-        public IEnumerable<localizationPersistenceOnScreenEntry> GetEntries()
+        public List<localizationPersistenceOnScreenEntry> GetEntries()
         {
-            if (!IsLoaded())
+            if (!_secondaryKeys.ContainsKey(Language))
             {
-                return new List<localizationPersistenceOnScreenEntry>();
+                LoadCurrentLanguage();
             }
-            return _primaryKeys[Language].Values;
+            return _secondaryKeys[Language].Values.ToList();
         }
 
-        public localizationPersistenceOnScreenEntry? GetEntry(ulong key)
+        public localizationPersistenceOnScreenEntry GetEntry(ulong key)
         {
-            if (!IsLoaded())
+            if (!_primaryKeys.ContainsKey(Language))
             {
-                return null;
+                LoadCurrentLanguage();
             }
-
-            return _primaryKeys[Language].TryGetValue(key, out var value) ? value : null;
+            return _primaryKeys[Language].GetValueOrDefault(key, null);
         }
 
-        public localizationPersistenceOnScreenEntry? GetEntry(string key)
+        public localizationPersistenceOnScreenEntry GetEntry(string key)
         {
-            if (!IsLoaded())
+            if (!_secondaryKeys.ContainsKey(Language))
             {
-                return null;
+                LoadCurrentLanguage();
             }
-
-            return _primaryKeys[Language].Values.FirstOrDefault(x => x.SecondaryKey == key);
+            return _secondaryKeys[Language].GetValueOrDefault(key, null);
         }
 
-        public string? GetFemaleVariant(ulong key) => GetEntry(key)?.FemaleVariant;
+        public string GetFemaleVariant(ulong key) => GetEntry(key)?.FemaleVariant ?? null;
 
-        public string? GetFemaleVariant(string key) => GetEntry(key)?.FemaleVariant;
+        public string GetFemaleVariant(string key) => GetEntry(key)?.FemaleVariant ?? null;
 
-        public string? GetMaleVariant(ulong key) => GetEntry(key)?.MaleVariant;
+        public string GetMaleVariant(ulong key) => GetEntry(key)?.MaleVariant ?? null;
 
-        public string? GetMaleVariant(string key) => GetEntry(key)?.MaleVariant;
+        public string GetMaleVariant(string key) => GetEntry(key)?.MaleVariant ?? null;
     }
 }

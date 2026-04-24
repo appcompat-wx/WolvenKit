@@ -5,7 +5,7 @@ using Serilog.Configuration;
 using Serilog.Core;
 using Serilog.Events;
 
-namespace WolvenKit.App;
+namespace WolvenKit;
 
 public class MySink : ILogEventSink
 {
@@ -18,13 +18,11 @@ public class MySink : ILogEventSink
         //_formatProvider = formatProvider;
     }
 
-    public void Emit(LogEvent logEvent)
-    {
+    public void Emit(LogEvent logEvent) =>
         //var message = logEvent.RenderMessage(_formatProvider);
         //Console.WriteLine(DateTimeOffset.Now.ToString() + " " + message);
 
         _logEvents.Add(logEvent);
-    }
 
     public IObservable<IChangeSet<LogEvent>> Connect() => _logEvents.Connect();
 

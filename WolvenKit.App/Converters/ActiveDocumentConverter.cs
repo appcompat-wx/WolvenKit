@@ -1,32 +1,33 @@
 using System;
 using System.Windows.Data;
-using WolvenKit.App.ViewModels.Documents;
+using WolvenKit.ViewModels.Documents;
 
-namespace WolvenKit.App.Converters;
-
-public class ActiveDocumentConverter : IValueConverter
+namespace WolvenKit.Functionality.Converters
 {
-    #region Methods
-
-    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    public class ActiveDocumentConverter : IValueConverter
     {
-        if (value is DocumentViewModel)
+        #region Methods
+
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
-            return value;
+            if (value is DocumentViewModel)
+            {
+                return value;
+            }
+
+            return Binding.DoNothing;
         }
 
-        return Binding.DoNothing;
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-    {
-        if (value is DocumentViewModel)
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
-            return value;
+            if (value is DocumentViewModel)
+            {
+                return value;
+            }
+
+            return Binding.DoNothing;
         }
 
-        return Binding.DoNothing;
+        #endregion Methods
     }
-
-    #endregion Methods
 }

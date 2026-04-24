@@ -1,6 +1,5 @@
 using System.IO;
 using System.Runtime.Serialization;
-using WolvenKit.Core.Extensions;
 using WolvenKit.RED4.Types;
 
 namespace WolvenKit.Modkit.Extensions
@@ -33,7 +32,7 @@ namespace WolvenKit.Modkit.Extensions
 
             foreach (var dataElement in c2DArray.Data)
             {
-                var dataline = string.Join(separator, dataElement.NotNull());
+                var dataline = string.Join(separator, dataElement);
                 writer.WriteLine(dataline);
             }
         }
@@ -63,7 +62,7 @@ namespace WolvenKit.Modkit.Extensions
             }
 
             // read elements
-            string? line;
+            string line;
             var cnt = 0;
             while ((line = sr.ReadLine()) != null)
             {

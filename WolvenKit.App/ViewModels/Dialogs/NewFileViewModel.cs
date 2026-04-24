@@ -2,174 +2,151 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Reactive;
 using System.Reflection;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using System.Xml.Serialization;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using WolvenKit.App.Services;
+using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
+using Splat;
 using WolvenKit.Common;
 using WolvenKit.Common.Model;
-using WolvenKit.Core.Extensions;
-using WolvenKit.Core.Interfaces;
+using WolvenKit.Functionality.Services;
+using WolvenKit.ProjectManagement.Project;
 using WolvenKit.RED4.Archive;
 using WolvenKit.RED4.CR2W;
+using WolvenKit.ViewModels.Dialogs;
 
-namespace WolvenKit.App.ViewModels.Dialogs;
-
-public partial class NewFileViewModel : DialogViewModel
+namespace WolvenKit.App.ViewModels.Dialogs
 {
-
-    public delegate Task ReturnHandler(NewFileViewModel? file);
-    public ReturnHandler? FileHandler;
-    private readonly IProjectManager _projectManager;
-    private readonly ISettingsManager _settingsManager;
-    private readonly ILoggerService _loggerService;
-
-    public NewFileViewModel(
-        IProjectManager projectManager,
-        ISettingsManager settingsManager,
-        ILoggerService loggerService
-    )
+    public class NewFileViewModel : DialogViewModel
     {
-        _projectManager = projectManager;
-        _loggerService = loggerService;
-        _settingsManager = settingsManager;
 
-        Title = "Create new file";
+        public delegate Task ReturnHandler(NewFileViewModel file);
+        public ReturnHandler FileHandler;
 
-        try
+        public NewFileViewModel()
         {
-            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(@"WolvenKit.App.Resources.WolvenKitFileDefinitions.xml").NotNull();
-
-            XmlSerializer serializer = new(typeof(WolvenKitFileDefinitions));
-            if (serializer.Deserialize(stream) is not WolvenKitFileDefinitions newdef)
+            OkCommand = ReactiveCommand.Create(() =>
             {
-                throw new ArgumentNullException("WolvenKitFileDefinitions");
-            }
+                IsCreating = true;
+                FileHandler(this);
+            }, this.WhenAnyValue(
+                x => x.FileName, x => x.FullPath, x => x.IsCreating,
+                (file, path, isCreating) =>
+                    !isCreating &&
+                    file is not null &&
+                    !string.IsNullOrEmpty(file) &&
+                    !File.Exists(path)));
 
-            var resourceFiles = newdef.Categories.First(x => x.Name == "CR2W Files").Files.NotNull();
+#pragma warning disable IDE0053 // Use expression body for lambda expressions
+            CancelCommand = ReactiveCommand.Create(() => { FileHandler(null); });
+#pragma warning restore IDE0053 // Use expression body for lambda expressions
 
-            foreach (ERedExtension ext in Enum.GetValues(typeof(ERedExtension)))
+            Title = "Create new file";
+
+            try
             {
-                var c = CommonFunctions.GetResourceClassesFromExtension(ext);
-                if (c is not null)
+                using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(@"WolvenKit.App.Resources.WolvenKitFileDefinitions.xml");
+
+                XmlSerializer serializer = new(typeof(WolvenKitFileDefinitions));
+                var newdef = (WolvenKitFileDefinitions)serializer.Deserialize(stream);
+                foreach (ERedExtension ext in Enum.GetValues(typeof(ERedExtension)))
                 {
-                    resourceFiles.Add(new AddFileModel(c, $"A .{ext} File", ext.ToString(), EWolvenKitFile.Cr2w, ""));
+                    if (CommonFunctions.GetResourceClassesFromExtension(ext) is not null)
+                    {
+                        var resourceFiles = newdef.Categories.FirstOrDefault(x => x.Name == "CR2W Files");
+                        resourceFiles.Files.Add(new AddFileModel()
+                        {
+                            Name = CommonFunctions.GetResourceClassesFromExtension(ext),
+                            Description = $"A .{ext} File",
+                            Extension = ext.ToString(),
+                            Type = EWolvenKitFile.Cr2w,
+                            Template = ""
+                        });
+                    }
                 }
+
+                var ordered = newdef.Categories.FirstOrDefault(x => x.Name == "CR2W Files").Files.OrderBy(x => x.Name).ToList();
+                newdef.Categories.FirstOrDefault(x => x.Name == "CR2W Files").Files = ordered;
+                Categories = new ObservableCollection<FileCategoryModel>(newdef.Categories);
+
+                SelectedCategory = Categories.FirstOrDefault();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
             }
 
-            var ordered = newdef.Categories.First(x => x.Name == "CR2W Files").Files.NotNull().OrderBy(x => x.Name).ToList();
-            newdef.Categories.First(x => x.Name == "CR2W Files").Files = ordered;
-            Categories = new ObservableCollection<FileCategoryModel>(newdef.Categories);
 
-            SelectedCategory = Categories.FirstOrDefault();
-        }
-        catch (Exception e)
-        {
-            _loggerService.Error(e);
-            throw;
-        }
-    }
-
-    public string Title { get; set; }
-
-    [ObservableProperty] private string? _text;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(OkCommand))]
-    private bool _isCreating;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(OkCommand))]
-    private string? _fileName;
-    partial void OnFileNameChanged(string? value)
-    {
-        if (SelectedFile is not null && value is not null)
-        {
-            FullPath = Path.Combine(GetDefaultDir(SelectedFile.Type), value);
-            WhyNotCreate = File.Exists(FullPath) ? "Filename already in use" : "";
-        }
-        else
-        {
-            WhyNotCreate = "";
-        }
-    }
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(OkCommand))]
-    private string? _fullPath;
-
-    [ObservableProperty] private ObservableCollection<FileCategoryModel> _categories = new();
-
-    [ObservableProperty] private FileCategoryModel? _selectedCategory;
-
-    [ObservableProperty] private AddFileModel? _selectedFile;
-    partial void OnSelectedFileChanged(AddFileModel? value)
-    {
-        if (value is null)
-        {
-            return;
-        }
-
-        var project = _projectManager.ActiveProject;
-        if (project is null)
-        {
-            return;
-        }
-
+            this.WhenAnyValue(x => x.SelectedFile)
+                .WhereNotNull()
+                .Subscribe(x =>
+                {
+                    var project = Locator.Current.GetService<IProjectManager>().ActiveProject;
+                    var sep = Path.DirectorySeparatorChar;
 #pragma warning disable IDE0072 // Add missing cases
-        FileName = SelectedFile?.Type switch
-        {
-            EWolvenKitFile.TweakXl => Path.Combine(GetTweakDir(), $"untitled.{value.Extension.NotNull().ToLower()}"),
-            EWolvenKitFile.RedScript => Path.Combine(GetScriptDir(), $"untitled.{value.Extension.NotNull().ToLower()}"),
-            EWolvenKitFile.ArchiveXl => $"{project.Name}.{value.Extension.NotNull().ToLower()}",
-            EWolvenKitFile.CETLua => Path.Combine(GetCetDir(), $"init.{value.Extension.NotNull().ToLower()}"),
-            _ => $"{value.Name.NotNull().Split(' ').First()}1.{value.Extension.NotNull().ToLower()}",
-        };
+                    FileName = SelectedFile.Type switch
+                    {
+                        EWolvenKitFile.RedScript => $"r6{sep}scripts{sep}{project.Name}{sep}untitled.{x.Extension.ToLower()}",
+                        EWolvenKitFile.CETLua => $"bin{sep}x64{sep}plugins{sep}cyber_engine_tweaks{sep}mods{sep}{project.Name}{sep}init.{x.Extension.ToLower()}",
+                        _ => x is not null ? $"{x.Name.Split(' ').First()}1.{x.Extension.ToLower()}" : null,
+                    };
 #pragma warning restore IDE0072 // Add missing cases
-    }
+                });
+            this.WhenAnyValue(x => x.FileName)
+                .Subscribe(x =>
+                {
+                    if (SelectedFile is not null && x is not null)
+                    {
+                        FullPath = Path.Combine(GetDefaultDir(SelectedFile.Type), x);
+                        WhyNotCreate = File.Exists(FullPath) ? "Filename already in use" : "";
+                    }
+                    else
+                    {
+                        WhyNotCreate = "";
+                    }
+                });
+        }
 
-    [ObservableProperty] private string? _whyNotCreate;
+        [Reactive] public string Text { get; set; }
 
-    private string GetTweakDir() =>
-        _projectManager.ActiveProject!.GetResourceTweakDirectory(_settingsManager.UseAuthorNameAsSubfolder);
+        [Reactive] public bool IsCreating { get; set; }
 
-    private string GetScriptDir() =>
-        _projectManager.ActiveProject!.GetResourceScriptsDirectory(_settingsManager.UseAuthorNameAsSubfolder);
+        [Reactive] public string FileName { get; set; }
+        [Reactive] public string FullPath { get; set; }
 
-    private string GetCetDir() => _projectManager.ActiveProject!.GetResourceCETDirectory();
+        public string Title { get; set; }
 
-    private string GetDefaultDir(EWolvenKitFile type)
-    {
-        ArgumentNullException.ThrowIfNull(_projectManager.ActiveProject);
+        [Reactive] public ObservableCollection<FileCategoryModel> Categories { get; set; } = new();
 
-        return type switch
+        [Reactive] public FileCategoryModel SelectedCategory { get; set; }
+
+        [Reactive] public AddFileModel SelectedFile { get; set; }
+
+        public override ReactiveCommand<Unit, Unit> OkCommand { get; }
+        public override ReactiveCommand<Unit, Unit> CancelCommand { get; }
+        [Reactive] public string WhyNotCreate { get; set; }
+
+        private string GetDefaultDir(EWolvenKitFile type)
         {
-            EWolvenKitFile.TweakXl => GetTweakDir(),
-            EWolvenKitFile.Cr2w => _projectManager.ActiveProject.ModDirectory,
-            EWolvenKitFile.ArchiveXl => _projectManager.ActiveProject.ResourcesDirectory,
-            EWolvenKitFile.RedScript => GetScriptDir(),
-            EWolvenKitFile.CETLua => GetCetDir(),
-            EWolvenKitFile.WScript => throw new NotImplementedException(),
-            EWolvenKitFile.Other => throw new NotImplementedException(),
-            _ => throw new ArgumentOutOfRangeException(nameof(type)),
-        };
+            var project = Locator.Current.GetService<IProjectManager>().ActiveProject;
+            return type switch
+            {
+                EWolvenKitFile.TweakXl => project.ResourcesDirectory,
+                EWolvenKitFile.Cr2w => project.ModDirectory,
+                EWolvenKitFile.ArchiveXl => project.ResourcesDirectory,
+                EWolvenKitFile.RedScript => project.ResourcesDirectory,
+                EWolvenKitFile.CETLua => project.ResourcesDirectory,
+                EWolvenKitFile.WScript => throw new NotImplementedException(),
+                _ => throw new ArgumentOutOfRangeException(nameof(type)),
+            };
+        }
     }
 
-    private bool CanExecuteOk() => !IsCreating && FileName is not null && !string.IsNullOrEmpty(FileName) && !File.Exists(FullPath);
 
-    [RelayCommand(CanExecute = nameof(CanExecuteOk))]
-    private void Ok()
-    {
-        IsCreating = true;
-        FileHandler?.Invoke(this);
-    }
 
-    [RelayCommand]
-    private void Cancel()
-    {
-        FileHandler?.Invoke(null);
-    }
 
 }

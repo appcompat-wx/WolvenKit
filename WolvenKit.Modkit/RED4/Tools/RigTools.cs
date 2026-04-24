@@ -2,34 +2,32 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using SharpGLTF.Schema2;
-using WolvenKit.Core.Extensions;
 using WolvenKit.Modkit.RED4.GeneralStructs;
 using WolvenKit.RED4.Archive.CR2W;
 using WolvenKit.RED4.Types;
-using Quat = System.Numerics.Quaternion;
-using Vec3 = System.Numerics.Vector3;
 
 namespace WolvenKit.Modkit.RED4.RigFile
 {
+    using Quat = System.Numerics.Quaternion;
+    using Vec3 = System.Numerics.Vector3;
+
     public class RIG
     {
-        public static RawArmature? ProcessRig(CR2WFile? cr2w)
+        public static RawArmature ProcessRig(CR2WFile cr2w)
         {
-            if (cr2w is not { RootChunk: animRig animRig })
+            if (cr2w == null || cr2w.RootChunk is not animRig animrig)
             {
                 return null;
             }
 
-            var rig = new RawArmature
+            var Rig = new RawArmature
             {
-                BoneCount = animRig.BoneNames.Count,
-                Names = animRig.BoneNames.Select(_ => _.GetResolvedText().NotNull()).ToArray(),
-                Parent = animRig.BoneParentIndexes.Select(_ => (short)_).ToArray(),
-                LocalPosn = animRig.BoneTransforms.Select(p => new Vec3(p.Translation.X, p.Translation.Z, -p.Translation.Y)).ToArray(),
-                LocalRot = animRig.BoneTransforms.Select(p => new Quat(p.Rotation.I, p.Rotation.K, -p.Rotation.J, p.Rotation.R)).ToArray(),
-                LocalScale = animRig.BoneTransforms.Select(p => new Vec3(p.Scale.X, p.Scale.Y, p.Scale.Z)).ToArray(),
-                TrackNames = animRig.TrackNames.Select(_ => _.GetResolvedText() ?? string.Empty).ToArray(),
-                ReferenceTracks = animRig.ReferenceTracks.Select(_ => (float)_).ToArray(),
+                BoneCount = animrig.BoneNames.Count,
+                Names = animrig.BoneNames.Select(_ => _.GetResolvedText()).ToArray(),
+                Parent = animrig.BoneParentIndexes.Select(_=>(short)_).ToArray(),
+                LocalPosn = animrig.BoneTransforms.Select(p => new Vec3(p.Translation.X, p.Translation.Z, -p.Translation.Y)).ToArray(),
+                LocalRot = animrig.BoneTransforms.Select(p => new Quat(p.Rotation.I, p.Rotation.K, -p.Rotation.J, p.Rotation.R)).ToArray(),
+                LocalScale = animrig.BoneTransforms.Select(p => new Vec3(p.Scale.X, p.Scale.Y, p.Scale.Z)).ToArray(),
             };
 
             // if AposeWorld/AposeMS Exists then..... this can be done better i guess...
@@ -37,69 +35,57 @@ namespace WolvenKit.Modkit.RED4.RigFile
             {
                 if (aRig.APoseMS is not null && aRig.APoseMS.Count > 0)
                 {
-                    rig.AposeMSExits = true;
+                    Rig.AposeMSExits = true;
 
-                    rig.AposeMSTrans = aRig.APoseMS.Select(p => new Vec3(p.Translation.X, p.Translation.Z, -p.Translation.Y)).ToArray();
-                    rig.AposeMSRot = aRig.APoseMS.Select(p => new Quat(p.Rotation.I, p.Rotation.K, -p.Rotation.J, p.Rotation.R)).ToArray();
-                    rig.AposeMSScale = aRig.APoseMS.Select(p => new Vec3(p.Scale.X, p.Scale.Y, p.Scale.Z)).ToArray();
+                    Rig.AposeMSTrans = aRig.APoseMS.Select(p => new Vec3(p.Translation.X,p.Translation.Z, -p.Translation.Y)).ToArray();
+                    Rig.AposeMSRot = aRig.APoseMS.Select(p => new Quat(p.Rotation.I, p.Rotation.K, -p.Rotation.J,p.Rotation.R)).ToArray();
+                    Rig.AposeMSScale = aRig.APoseMS.Select(p => new Vec3(p.Scale.X, p.Scale.Y, p.Scale.Z)).ToArray();
                 }
 
                 // not sure how APose works or how the matrix multiplication will be, maybe its a recursive mul
                 if (aRig.APoseLS is not null && aRig.APoseLS.Count > 0)
                 {
-                    rig.AposeLSExits = true;
+                    Rig.AposeLSExits = true;
 
-                    rig.AposeLSTrans = aRig.APoseLS.Select(p => new Vec3(p.Translation.X, p.Translation.Z, -p.Translation.Y)).ToArray();
-                    rig.AposeLSRot = aRig.APoseLS.Select(p => new Quat(p.Rotation.I, p.Rotation.K, -p.Rotation.J, p.Rotation.R)).ToArray();
-                    rig.AposeLSScale = aRig.APoseLS.Select(p => new Vec3(p.Scale.X, p.Scale.Y, p.Scale.Z)).ToArray();
+                    Rig.AposeLSTrans = aRig.APoseLS.Select(p => new Vec3(p.Translation.X, p.Translation.Z, -p.Translation.Y)).ToArray();
+                    Rig.AposeLSRot = aRig.APoseLS.Select(p => new Quat(p.Rotation.I, p.Rotation.K, -p.Rotation.J, p.Rotation.R)).ToArray();
+                    Rig.AposeLSScale = aRig.APoseLS.Select(p => new Vec3(p.Scale.X, p.Scale.Y, p.Scale.Z)).ToArray();
                 }
             }
 
             var baseTendencyBoneNames = new string[] { "Root", "Hips", "Spine", "LeftUpLeg", "RightUpLeg", "Spine1", "LeftLeg", "RightLeg", "Spine2", "LeftFoot", "RightFoot", "Spine3",
                 "LeftShoulder", "RightShoulder", "Neck", "LeftArm", "RightArm", "Neck1", "LeftForeArm", "RightForeArm", "Head" };
-            rig.baseTendencyCount = 0;
-            foreach (var name in baseTendencyBoneNames)
+            Rig.baseTendencyCount = 0;
+            for (var i = 0; i < baseTendencyBoneNames.Length; i++)
             {
-                if (rig.Names.Contains(name))
+                if (Rig.Names.Contains(baseTendencyBoneNames[i]))
                 {
-                    rig.baseTendencyCount++;
+                    Rig.baseTendencyCount++;
                 }
             }
-            return rig;
+            return Rig;
         }
         public static RawArmature CombineRigs(List<RawArmature> rigs)
         {
             rigs = rigs.OrderByDescending(_ => _.BoneCount).ToList();
             rigs = rigs.OrderByDescending(_ => _.baseTendencyCount).ToList();
 
-            var names = new List<string>();
+            var Names = new List<string>();
 
-            var parent = new List<short>();
-            var boneCount = 0;
-            var localPosN = new List<Vec3>();
-            var localRot = new List<Quat>();
-            var localScale = new List<Vec3>();
+            var Parent = new List<short>();
+            var BoneCount = 0;
+            var LocalPosn = new List<Vec3>();
+            var LocalRot = new List<Quat>();
+            var LocalScale = new List<Vec3>();
 
-            foreach (var rig in rigs)
+            for (var i = 0; i < rigs.Count; i++)
             {
-                ArgumentNullException.ThrowIfNull(rig.LocalPosn);
-                ArgumentNullException.ThrowIfNull(rig.LocalScale);
-                ArgumentNullException.ThrowIfNull(rig.LocalRot);
-                ArgumentNullException.ThrowIfNull(rig.Names);
-
-                if (rig.AposeLSExits)
-                {
-                    ArgumentNullException.ThrowIfNull(rig.AposeLSTrans);
-                    ArgumentNullException.ThrowIfNull(rig.AposeLSScale);
-                    ArgumentNullException.ThrowIfNull(rig.AposeLSRot);
-                }
-
-                for (var e = 0; e < rig.BoneCount; e++)
+                for (var e = 0; e < rigs[i].BoneCount; e++)
                 {
                     var found = false;
-                    for (var eye = 0; eye < boneCount; eye++)
+                    for (var eye = 0; eye < BoneCount; eye++)
                     {
-                        if (names[eye] == rig.Names[e])
+                        if (Names[eye] == rigs[i].Names[e])
                         {
                             found = true;
                             break;
@@ -107,41 +93,38 @@ namespace WolvenKit.Modkit.RED4.RigFile
                     }
                     if (!found)
                     {
-                        names.Add(rig.Names[e]);
-                        if (rig.AposeLSExits)
+                        Names.Add(rigs[i].Names[e]);
+                        if (rigs[i].AposeLSExits)
                         {
-                            localPosN.Add(rig.AposeLSTrans![e]);
-                            localScale.Add(rig.AposeLSScale![e]);
-                            localRot.Add(rig.AposeLSRot![e]);
+                            LocalPosn.Add(rigs[i].AposeLSTrans[e]);
+                            LocalScale.Add(rigs[i].AposeLSScale[e]);
+                            LocalRot.Add(rigs[i].AposeLSRot[e]);
                         }
                         else
                         {
-                            localPosN.Add(rig.LocalPosn[e]);
-                            localScale.Add(rig.LocalScale[e]);
-                            localRot.Add(rig.LocalRot[e]);
+                            LocalPosn.Add(rigs[i].LocalPosn[e]);
+                            LocalScale.Add(rigs[i].LocalScale[e]);
+                            LocalRot.Add(rigs[i].LocalRot[e]);
                         }
-                        boneCount++;
+                        BoneCount++;
                     }
                 }
             }
             // this rig merging is gonna break if someone tries to merge rigs not having a "Root" bone, generally seen with weapons etc.
-            parent.Add(-1); // assuming at i = 0 is always "Root" bone
-            for (var i = 1; i < boneCount; i++)  // i = 1, assuming at i = 0 is always "Root" bone
+            Parent.Add(-1); // assuming at i = 0 is always "Root" bone
+            for (var i = 1; i < BoneCount; i++)  // i = 1, assuming at i = 0 is always "Root" bone
             {
                 var found = false;
                 var parentName = string.Empty;
 
-                foreach (var rig in rigs)
+                for (var e = 0; e < rigs.Count; e++)
                 {
-                    ArgumentNullException.ThrowIfNull(rig.Names);
-                    ArgumentNullException.ThrowIfNull(rig.Parent);
-
-                    for (var eye = 0; eye < rig.BoneCount; eye++)
+                    for (var eye = 0; eye < rigs[e].BoneCount; eye++)
                     {
-                        if (names[i] == rig.Names[eye])
+                        if (Names[i] == rigs[e].Names[eye])
                         {
                             found = true;
-                            parentName = rig.Names[rig.Parent[eye]];
+                            parentName = rigs[e].Names[rigs[e].Parent[eye]];
                             break;
                         }
                     }
@@ -150,58 +133,44 @@ namespace WolvenKit.Modkit.RED4.RigFile
                         break;
                     }
                 }
-                for (short r = 0; r < boneCount; r++)
+                for (short r = 0; r < BoneCount; r++)
                 {
-                    if (parentName == names[r])
+                    if (parentName == Names[r])
                     {
-                        parent.Add(r);
+                        Parent.Add(r);
                         break;
                     }
                 }
             }
 
-            var combinedRig = new RawArmature
+            var CombinedRig = new RawArmature
             {
-                BoneCount = boneCount,
-                Names = names.ToArray(),
-                Parent = parent.ToArray(),
-                LocalPosn = localPosN.ToArray(),
-                LocalScale = localScale.ToArray(),
-                LocalRot = localRot.ToArray(),
+                BoneCount = BoneCount,
+                Names = Names.ToArray(),
+                Parent = Parent.ToArray(),
+                LocalPosn = LocalPosn.ToArray(),
+                LocalScale = LocalScale.ToArray(),
+                LocalRot = LocalRot.ToArray(),
                 AposeLSExits = false,
-                AposeMSExits = false,
-                ReferenceTracks = Array.Empty<float>(),
+                AposeMSExits = false
             };
 
-            return combinedRig;
+            return CombinedRig;
         }
         public static Dictionary<int, Node> ExportNodes(ref ModelRoot model, RawArmature srcBones)
         {
-            ArgumentNullException.ThrowIfNull(srcBones.Parent);
-            ArgumentNullException.ThrowIfNull(srcBones.Names);
-            ArgumentNullException.ThrowIfNull(srcBones.LocalScale);
-            ArgumentNullException.ThrowIfNull(srcBones.LocalRot);
-            ArgumentNullException.ThrowIfNull(srcBones.LocalPosn);
-
-            if (srcBones.AposeLSExits)
-            {
-                ArgumentNullException.ThrowIfNull(srcBones.AposeLSScale);
-                ArgumentNullException.ThrowIfNull(srcBones.AposeLSRot);
-                ArgumentNullException.ThrowIfNull(srcBones.AposeLSTrans);
-            }
-
             var bonesMapping = new Dictionary<int, Node>();
             var armature = model.UseScene(0).CreateNode("Armature");
             for (var i = 0; i < srcBones.BoneCount; i++)
             {
-                if (srcBones.Parent[i] > -1 && bonesMapping.ContainsKey(srcBones.Parent[i]))
+                if (srcBones.Parent[i] > -1)
                 {
                     var bone = bonesMapping[srcBones.Parent[i]].CreateNode(srcBones.Names[i]);
                     if (srcBones.AposeLSExits)
                     {
-                        var s = new Vec3(srcBones.AposeLSScale![i].X, srcBones.AposeLSScale[i].Y, srcBones.AposeLSScale[i].Z);
-                        var r = new Quat(srcBones.AposeLSRot![i].X, srcBones.AposeLSRot[i].Y, srcBones.AposeLSRot[i].Z, srcBones.AposeLSRot[i].W);
-                        var t = new Vec3(srcBones.AposeLSTrans![i].X, srcBones.AposeLSTrans[i].Y, srcBones.AposeLSTrans[i].Z);
+                        var s = new Vec3(srcBones.AposeLSScale[i].X, srcBones.AposeLSScale[i].Y, srcBones.AposeLSScale[i].Z);
+                        var r = new Quat(srcBones.AposeLSRot[i].X, srcBones.AposeLSRot[i].Y, srcBones.AposeLSRot[i].Z, srcBones.AposeLSRot[i].W);
+                        var t = new Vec3(srcBones.AposeLSTrans[i].X, srcBones.AposeLSTrans[i].Y, srcBones.AposeLSTrans[i].Z);
 
                         bone.WithLocalScale(s).WithLocalRotation(r).WithLocalTranslation(t);
                     }
@@ -220,9 +189,9 @@ namespace WolvenKit.Modkit.RED4.RigFile
                     var root = armature.CreateNode(srcBones.Names[i]);
                     if (srcBones.AposeLSExits)
                     {
-                        var s = new Vec3(srcBones.AposeLSScale![i].X, srcBones.AposeLSScale[i].Y, srcBones.AposeLSScale[i].Z);
-                        var r = new Quat(srcBones.AposeLSRot![i].X, srcBones.AposeLSRot[i].Y, srcBones.AposeLSRot[i].Z, srcBones.AposeLSRot[i].W);
-                        var t = new Vec3(srcBones.AposeLSTrans![i].X, srcBones.AposeLSTrans[i].Y, srcBones.AposeLSTrans[i].Z);
+                        var s = new Vec3(srcBones.AposeLSScale[i].X, srcBones.AposeLSScale[i].Y, srcBones.AposeLSScale[i].Z);
+                        var r = new Quat(srcBones.AposeLSRot[i].X, srcBones.AposeLSRot[i].Y, srcBones.AposeLSRot[i].Z, srcBones.AposeLSRot[i].W);
+                        var t = new Vec3(srcBones.AposeLSTrans[i].X, srcBones.AposeLSTrans[i].Y, srcBones.AposeLSTrans[i].Z);
                         root.WithLocalScale(s).WithLocalRotation(r).WithLocalTranslation(t);
                     }
                     else

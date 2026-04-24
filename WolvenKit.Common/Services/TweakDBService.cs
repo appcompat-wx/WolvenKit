@@ -1,51 +1,72 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Threading.Tasks;
+using System.Reflection;
 using WolvenKit.Common.Model;
-using WolvenKit.RED4.TweakDB;
 using WolvenKit.RED4.Types;
-using WolvenKit.RED4.Types.Pools;
+using WolvenKit.RED4.TweakDB;
+using WolvenKit.RED4.TweakDB.Helper;
+using System.Threading.Tasks;
 
 namespace WolvenKit.Common.Services
 {
     public class TweakDBService : ITweakDBService
     {
+        private const string s_tweakdbstr = "WolvenKit.Common.Resources.tweakdbstr.kark";
+        private const string s_userStrs = "userStrs.kark";
+
+        private static readonly TweakDBStringHelper s_stringHelper = new();
         private static TweakDB s_tweakDb = new();
 
-        private IHashService _hashService;
         private bool _isLoading;
 
-        public bool IsLoaded { get; set; }
-        public event EventHandler? Loaded;
+        public bool IsLoaded;
+        public event EventHandler Loaded;
 
-        public TweakDBService(IHashService hashService)
+        public TweakDBService()
         {
-            _hashService = hashService;
+            s_stringHelper.LoadFromStream(Assembly.GetExecutingAssembly().GetManifestResourceStream(s_tweakdbstr));
+
+            var userStrsPath = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory) ?? throw new InvalidOperationException(), s_userStrs);
+            if (File.Exists(userStrsPath))
+            {
+                s_stringHelper.Load(userStrsPath);
+            }
+
+            userStrsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "REDModding", "WolvenKit", s_userStrs);
+            if (File.Exists(userStrsPath))
+            {
+                s_stringHelper.Load(userStrsPath);
+            }
+
+            TweakDBIDPool.ResolveHashHandler = s_stringHelper.GetString;
         }
 
-        private void OnLoadDB() => Loaded?.Invoke(this, EventArgs.Empty);
+        private void OnLoadDB()
+        {
+            if (Loaded != null)
+            {
+                Loaded(this, EventArgs.Empty);
+            }
+        }
 
-        public async Task LoadDB(string path)
+        public Task LoadDB(string path)
         {
             if (IsLoaded || _isLoading)
             {
-                return;
+                return Task.CompletedTask;
             }
 
             _isLoading = true;
 
-            await _hashService.Loaded;
-
-            await Task.Run(() =>
+            return Task.Run(() =>
             {
                 using var fh = File.OpenRead(path);
                 using var reader = new TweakDBReader(fh);
 
                 if (reader.ReadFile(out var tweakDb) == WolvenKit.RED4.TweakDB.EFileReadErrorCodes.NoError)
                 {
-                    s_tweakDb = tweakDb!;
+                    s_tweakDb = tweakDb;
                     OnLoadDB();
 
                     IsLoaded = true;
@@ -55,73 +76,44 @@ namespace WolvenKit.Common.Services
             });
         }
 
-        public static bool Exists(TweakDBID key) => s_tweakDb.Flats.Exists(key) || s_tweakDb.Records.Exists(key);
-
-        public string? GetString(ulong key) => TweakDBIDPool.ResolveHash(key);
-        public static string? GetStringFromKey(ulong key) => TweakDBIDPool.ResolveHash(key);
-
-        public static IRedType? GetFlat(TweakDBID tdb) => s_tweakDb.Flats.GetValue((ulong)tdb);
-        public static List<TweakDBID>? GetQuery(TweakDBID tdb) => s_tweakDb.Queries.GetQuery((ulong)tdb);
-        public static byte? GetGroupTag(TweakDBID tdb) => s_tweakDb.GroupTags.GetGroupTag((ulong)tdb);
-        public static InternalEnums.EGroupTag GetGroupTagAsFlag(TweakDBID tdb)
+        public bool Exists(TweakDBID key)
         {
-            if (GetGroupTag(tdb) is { } val)
-            {
-                return (InternalEnums.EGroupTag)val;
-            }
-            
-            return InternalEnums.EGroupTag.None;
+            return s_tweakDb.Flats.Exists(key) || s_tweakDb.Records.Exists(key);
         }
 
-        public static bool TryGetType(TweakDBID tweakDBID, [NotNullWhen(true)] out Type? type)
+        public string GetString(ulong key) => s_stringHelper.GetString(key);
+
+        public IRedType GetFlat(TweakDBID tdb) => s_tweakDb.Flats.GetValue((ulong)tdb);
+        public List<TweakDBID> GetQuery(TweakDBID tdb) => s_tweakDb.Queries.GetQuery((ulong)tdb);
+        public byte? GetGroupTag(TweakDBID tdb) => s_tweakDb.GroupTags.GetGroupTag((ulong)tdb);
+
+        public Type GetType(TweakDBID tdb)
         {
-            var hash = (ulong)tweakDBID;
+            var hash = (ulong)tdb;
 
             var recordType = s_tweakDb.Records.GetRecord(hash);
             if (recordType != null)
             {
-                type = recordType;
-                return true;
+                return recordType;
             }
 
             var flatValue = s_tweakDb.Flats.GetValue(hash);
             if (flatValue != null)
             {
-                type = flatValue.GetType();
-                return true;
+                return flatValue.GetType();
             }
 
-            type = null;
-            return false;
+            return null;
         }
 
-        //public Type GetType(TweakDBID tdb)
-        //{
-        //    var hash = (ulong)tdb;
+        public List<TweakDBID> GetRecords() => s_tweakDb.GetRecords();
+        public List<TweakDBID> GetFlats() => s_tweakDb.GetFlats();
+        public List<TweakDBID> GetQueries() => s_tweakDb.GetQueries();
+        public List<TweakDBID> GetGroupTags() => s_tweakDb.GetGroupTags();
 
-        //    var recordType = s_tweakDb.Records.GetRecord(hash);
-        //    if (recordType != null)
-        //    {
-        //        return recordType;
-        //    }
+        public gamedataTweakDBRecord GetRecord(TweakDBID tdb) => s_tweakDb.GetFullRecord(tdb);
+        public gamedataTweakDBRecord GetRecord(SAsciiString path) => s_tweakDb.GetFullRecord(path.ToString());
 
-        //    var flatValue = s_tweakDb.Flats.GetValue(hash);
-        //    if (flatValue != null)
-        //    {
-        //        return flatValue.GetType();
-        //    }
-
-        //    throw new NotImplementedException();
-        //}
-
-        public static List<TweakDBID> GetRecords() => s_tweakDb.GetRecords();
-        public static List<TweakDBID> GetFlats() => s_tweakDb.GetFlats();
-        public static List<TweakDBID> GetQueries() => s_tweakDb.GetQueries();
-        public static List<TweakDBID> GetGroupTags() => s_tweakDb.GetGroupTags();
-
-        public static gamedataTweakDBRecord? GetRecord(TweakDBID tdb) => s_tweakDb.GetFullRecord(tdb);
-        public static gamedataTweakDBRecord? GetRecord(SAsciiString path) => s_tweakDb.GetFullRecord(path.ToString());
-
-        public static IRedType? GetFlat(SAsciiString path) => s_tweakDb.GetFlatValue(path.ToString());
+        public IRedType GetFlat(SAsciiString path) => s_tweakDb.GetFlatValue(path.ToString());
     }
 }

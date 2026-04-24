@@ -2,20 +2,17 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using CommunityToolkit.Mvvm.ComponentModel;
+using ReactiveUI;
 using WolvenKit.Core.Interfaces;
 
 namespace WolvenKit.Common.Model
 {
-    public partial class RedFileSystemModel : ObservableObject
+    public class RedFileSystemModel : ReactiveObject
     {
-        [ObservableProperty]
-        [NotifyPropertyChangedFor(nameof(Extension))]
-        private bool _isExpanded;
-
-        private string? _name;
-
-        public RedFileSystemModel(string fullname) => FullName = fullname;
+        public RedFileSystemModel(string fullname)
+        {
+            FullName = fullname;
+        }
 
         public string Name => _name ??= new DirectoryInfo(FullName).Name;
 
@@ -31,5 +28,13 @@ namespace WolvenKit.Common.Model
             ? nameof(ECustomImageKeys.OpenDirImageKey)
             : nameof(ECustomImageKeys.ClosedDirImageKey);
 
+        private bool _isExpanded;
+        private string _name;
+
+        public bool IsExpanded
+        {
+            get => _isExpanded;
+            set => this.RaiseAndSetIfChanged(ref _isExpanded, value);
+        }
     }
 }
