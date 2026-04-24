@@ -1,0 +1,511 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.Common\\WolvenKit.Common.csproj": {}
+  },
+  "projects": {
+    "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.Common\\WolvenKit.Common.csproj": {
+      "version": "1.61.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.Common\\WolvenKit.Common.csproj",
+        "projectName": "WolvenKit.Common",
+        "projectPath": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.Common\\WolvenKit.Common.csproj",
+        "packagesPath": "C:\\Users\\v-gwei\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.Common\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\v-gwei\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net7.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-aspnetcore-tooling/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-aspnetcore/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-entityframeworkcore/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-extensions/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/dotnet-windowsdesktop/index.json": {},
+          "https://grpc.jfrog.io/grpc/api/nuget/v3/grpc-nuget-dev": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet6/nuget/v3/index.json": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet7/nuget/v3/index.json": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet8/nuget/v3/index.json": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet9/nuget/v3/index.json": {}
+        },
+        "frameworks": {
+          "net7.0": {
+            "targetAlias": "net7.0",
+            "projectReferences": {
+              "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.Archive\\WolvenKit.RED4.Archive.csproj": {
+                "projectPath": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.Archive\\WolvenKit.RED4.Archive.csproj"
+              },
+              "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.TweakDB\\WolvenKit.RED4.TweakDB.csproj": {
+                "projectPath": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.TweakDB\\WolvenKit.RED4.TweakDB.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net7.0": {
+          "targetAlias": "net7.0",
+          "dependencies": {
+            "Microsoft.EntityFrameworkCore.Sqlite": {
+              "target": "Package",
+              "version": "[7.0.0, )"
+            },
+            "Microsoft.EntityFrameworkCore.Tools": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[7.0.0, )"
+            },
+            "PropertyChanged.Fody": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[4.1.0, )"
+            },
+            "SharpDX.Direct3D11": {
+              "target": "Package",
+              "version": "[4.2.0, )"
+            },
+            "SharpGLTF.Core": {
+              "target": "Package",
+              "version": "[1.0.0-alpha0023, )"
+            },
+            "SharpZipLib": {
+              "target": "Package",
+              "version": "[1.4.1, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[7.0.20, 7.0.20]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[7.0.20, 7.0.20]"
+            },
+            {
+              "name": "Microsoft.WindowsDesktop.App.Ref",
+              "version": "[7.0.20, 7.0.20]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.401\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.Core\\WolvenKit.Core.csproj": {
+      "version": "1.61.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.Core\\WolvenKit.Core.csproj",
+        "projectName": "WolvenKit.Core",
+        "projectPath": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.Core\\WolvenKit.Core.csproj",
+        "packagesPath": "C:\\Users\\v-gwei\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.Core\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\v-gwei\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net7.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-aspnetcore-tooling/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-aspnetcore/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-entityframeworkcore/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-extensions/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/dotnet-windowsdesktop/index.json": {},
+          "https://grpc.jfrog.io/grpc/api/nuget/v3/grpc-nuget-dev": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet6/nuget/v3/index.json": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet7/nuget/v3/index.json": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet8/nuget/v3/index.json": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet9/nuget/v3/index.json": {}
+        },
+        "frameworks": {
+          "net7.0": {
+            "targetAlias": "net7.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "allWarningsAsErrors": true,
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net7.0": {
+          "targetAlias": "net7.0",
+          "dependencies": {
+            "Microsoft.Build.Framework": {
+              "target": "Package",
+              "version": "[17.4.0, )"
+            },
+            "ReactiveUI": {
+              "target": "Package",
+              "version": "[18.4.1, )"
+            },
+            "Serilog": {
+              "target": "Package",
+              "version": "[2.12.0, )"
+            },
+            "System.Reflection.MetadataLoadContext": {
+              "target": "Package",
+              "version": "[7.0.0, )"
+            },
+            "protobuf-net.Core": {
+              "target": "Package",
+              "version": "[3.1.25, )"
+            },
+            "semver": {
+              "target": "Package",
+              "version": "[2.2.0, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[7.0.20, 7.0.20]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[7.0.20, 7.0.20]"
+            },
+            {
+              "name": "Microsoft.WindowsDesktop.App.Ref",
+              "version": "[7.0.20, 7.0.20]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.401\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.Archive\\WolvenKit.RED4.Archive.csproj": {
+      "version": "1.61.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.Archive\\WolvenKit.RED4.Archive.csproj",
+        "projectName": "WolvenKit.RED4.Archive",
+        "projectPath": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.Archive\\WolvenKit.RED4.Archive.csproj",
+        "packagesPath": "C:\\Users\\v-gwei\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.Archive\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\v-gwei\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net7.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-aspnetcore-tooling/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-aspnetcore/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-entityframeworkcore/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-extensions/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/dotnet-windowsdesktop/index.json": {},
+          "https://grpc.jfrog.io/grpc/api/nuget/v3/grpc-nuget-dev": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet6/nuget/v3/index.json": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet7/nuget/v3/index.json": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet8/nuget/v3/index.json": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet9/nuget/v3/index.json": {}
+        },
+        "frameworks": {
+          "net7.0": {
+            "targetAlias": "net7.0",
+            "projectReferences": {
+              "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.Types\\WolvenKit.RED4.Types.csproj": {
+                "projectPath": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.Types\\WolvenKit.RED4.Types.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "allWarningsAsErrors": true,
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net7.0": {
+          "targetAlias": "net7.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[7.0.20, 7.0.20]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[7.0.20, 7.0.20]"
+            },
+            {
+              "name": "Microsoft.WindowsDesktop.App.Ref",
+              "version": "[7.0.20, 7.0.20]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.401\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.TweakDB\\WolvenKit.RED4.TweakDB.csproj": {
+      "version": "1.61.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.TweakDB\\WolvenKit.RED4.TweakDB.csproj",
+        "projectName": "WolvenKit.RED4.TweakDB",
+        "projectPath": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.TweakDB\\WolvenKit.RED4.TweakDB.csproj",
+        "packagesPath": "C:\\Users\\v-gwei\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.TweakDB\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\v-gwei\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net7.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-aspnetcore-tooling/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-aspnetcore/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-entityframeworkcore/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-extensions/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/dotnet-windowsdesktop/index.json": {},
+          "https://grpc.jfrog.io/grpc/api/nuget/v3/grpc-nuget-dev": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet6/nuget/v3/index.json": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet7/nuget/v3/index.json": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet8/nuget/v3/index.json": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet9/nuget/v3/index.json": {}
+        },
+        "frameworks": {
+          "net7.0": {
+            "targetAlias": "net7.0",
+            "projectReferences": {
+              "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.Types\\WolvenKit.RED4.Types.csproj": {
+                "projectPath": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.Types\\WolvenKit.RED4.Types.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "allWarningsAsErrors": true,
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net7.0": {
+          "targetAlias": "net7.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[7.0.20, 7.0.20]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[7.0.20, 7.0.20]"
+            },
+            {
+              "name": "Microsoft.WindowsDesktop.App.Ref",
+              "version": "[7.0.20, 7.0.20]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.401\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.Types\\WolvenKit.RED4.Types.csproj": {
+      "version": "1.61.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.Types\\WolvenKit.RED4.Types.csproj",
+        "projectName": "WolvenKit.RED4.Types",
+        "projectPath": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.Types\\WolvenKit.RED4.Types.csproj",
+        "packagesPath": "C:\\Users\\v-gwei\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.RED4.Types\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\v-gwei\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net7.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-aspnetcore-tooling/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-aspnetcore/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-entityframeworkcore/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/aspnet-extensions/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json": {},
+          "https://dotnetfeed.blob.core.windows.net/dotnet-windowsdesktop/index.json": {},
+          "https://grpc.jfrog.io/grpc/api/nuget/v3/grpc-nuget-dev": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet6/nuget/v3/index.json": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet7/nuget/v3/index.json": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet8/nuget/v3/index.json": {},
+          "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet9/nuget/v3/index.json": {}
+        },
+        "frameworks": {
+          "net7.0": {
+            "targetAlias": "net7.0",
+            "projectReferences": {
+              "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.Core\\WolvenKit.Core.csproj": {
+                "projectPath": "C:\\Users\\v-gwei\\Downloads\\WolvenKit-8.8.1\\WolvenKit-8.8.1\\WolvenKit.Core\\WolvenKit.Core.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "allWarningsAsErrors": true,
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net7.0": {
+          "targetAlias": "net7.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[7.0.20, 7.0.20]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[7.0.20, 7.0.20]"
+            },
+            {
+              "name": "Microsoft.WindowsDesktop.App.Ref",
+              "version": "[7.0.20, 7.0.20]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.401\\RuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}
