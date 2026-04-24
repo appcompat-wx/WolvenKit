@@ -1,0 +1,69 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <VersionPrefix>1.61.0</VersionPrefix>
+    <VersionSuffix>$(VersionSuffix)</VersionSuffix>
+    <Platforms>x64</Platforms>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+      
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsNotAsErrors>612,618,NU5104</WarningsNotAsErrors>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+    <PropertyGroup>
+        <PackageId>WolvenKit.Modkit</PackageId>
+        <Product>WolvenKit.Modkit</Product>
+        <Description>Modding tools for Cyberpunk 2077.</Description>
+
+        <Company>WolvenKit</Company>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageProjectUrl>https://github.com/WolvenKit/WolvenKit</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/WolvenKit/WolvenKit</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageTags>wolvenkit, cyberpunk2077</PackageTags>
+
+        <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+        <PackageOutputPath>./nupkg</PackageOutputPath>
+    </PropertyGroup>
+    
+  <ItemGroup>
+    <None Remove="Resources\soundEvents.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+      <PackageReference Include="BigGustave" Version="1.0.6" />
+      <PackageReference Include="Microsoft.ClearScript.V8" Version="7.3.5" />
+      <PackageReference Include="Microsoft.ClearScript.V8.Native.win-x64" Version="7.3.5" />
+      <PackageReference Include="Microsoft.Extensions.Options" Version="7.0.0" />
+      <PackageReference Include="AsyncEnumerator" Version="4.0.2" />
+      <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.0-alpha0023" />
+      <PackageReference Include="ReactiveUI.Fody" Version="18.4.1" />
+      <PackageReference Include="YamlDotNet" Version="12.0.2" />
+  </ItemGroup>
+
+    <ItemGroup>
+        <Content Include="opus-tools\opusdec.exe">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="opus-tools\opusenc.exe">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="opus-tools\opusinfo.exe">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\soundEvents.json">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+    
+  <ItemGroup>
+    <ProjectReference Include="..\WolvenKit.Common\WolvenKit.Common.csproj" />
+  </ItemGroup>
+    
+  <ItemGroup>
+    <Folder Include="Scripting\" />
+  </ItemGroup>
+
+</Project>
