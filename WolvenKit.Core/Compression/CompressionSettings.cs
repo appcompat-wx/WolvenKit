@@ -2,7 +2,7 @@ namespace WolvenKit.Core.Compression;
 
 public sealed class CompressionSettings
 {
-    private static readonly CompressionSettings s_instance = new();
+    private static readonly CompressionSettings s_instance = new CompressionSettings();
 
     public Oodle.CompressionLevel CompressionLevel { get; set; } = Oodle.CompressionLevel.Normal;
 

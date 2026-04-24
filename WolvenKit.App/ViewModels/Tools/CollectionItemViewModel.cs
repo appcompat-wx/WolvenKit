@@ -1,52 +1,41 @@
 using System;
-using CommunityToolkit.Mvvm.ComponentModel;
 using WolvenKit.App.ViewModels.Dialogs;
+using WolvenKit.Common;
 using WolvenKit.RED4.Archive;
 
-namespace WolvenKit.App.ViewModels.Tools;
-
-public class CollectionItemViewModel<T> : ObservableObject, IDisplayable
+namespace WolvenKit.ViewModels.Tools
 {
-    public CollectionItemViewModel(T model) => Model = model;
-
-    public string Name
+    public class CollectionItemViewModel<T> : ObservableObject, IDisplayable
     {
-        get
-        {
-            return Model switch
-            {
-                FileEntry fe => fe.ShortName,
-                uint u => u.ToString(),
-                _ => throw new ArgumentException()
-            };
-        }
-    }
+        public CollectionItemViewModel(T model) => Model = model;
 
-    public string Info
-    {
-        get
+        public string Info
         {
-            return Model switch
+            get
             {
-                FileEntry fe => fe.Archive.Name,
-                uint u => "",
-                _ => throw new ArgumentException()
-            };
+                return Model switch
+                {
+                    FileEntry fe => fe.Name,
+                    uint u => u.ToString(),
+                    _ => throw new ArgumentException()
+                };
+            }
         }
-    }
 
-    public string Path
-    {
-        get
+        public string Name
         {
-            return Model switch
+            get
             {
-                FileEntry fe => fe.Name,
-                uint u => "",
-                _ => throw new ArgumentException()
-            };
+                return Model switch
+                {
+                    FileEntry fe => fe.ShortName,
+                    uint u => u.ToString(),
+                    _ => throw new ArgumentException()
+                };
+            }
         }
-    }
 
-    public T Model { get; set; }
+
+        public T Model { get; set; }
+    }
 }

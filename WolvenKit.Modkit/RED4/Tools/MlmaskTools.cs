@@ -2,10 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using CP77.Common.Image;
+using SharpDX.Win32;
 using WolvenKit.Common;
 using WolvenKit.Common.DDS;
 using WolvenKit.Common.Model.Arguments;
-using WolvenKit.RED4.Archive.CR2W;
+using WolvenKit.Common.Services;
 using WolvenKit.RED4.CR2W;
 using WolvenKit.RED4.Types;
 
@@ -72,36 +73,32 @@ namespace WolvenKit.Modkit.RED4
                     Depth = 1,
                     MipCount = 1,
                     SliceCount = 1,
-                    TextureType = Enums.GpuWrapApieTextureType.TEXTYPE_2D
+                    TextureType = Enums.GpuWrapApieTextureType.TEXTYPE_2D,
+                    FlipV = false
                 };
 
                 yield return RedImage.Create(info, maskData);
             }
         }
 
-        public bool UncookMlmask(Multilayer_Mask mlmask, FileInfo outfile, MlmaskExportArgs args)
+        public bool UncookMlmask(Stream cr2wStream, FileInfo outfile, MlmaskExportArgs args)
         {
             // read the cr2wfile
-            if (mlmask.RenderResourceBlob.RenderResourceBlobPC.Chunk is not rendRenderMultilayerMaskBlobPC blob)
+            var cr2w = _wolvenkitFileService.ReadRed4File(cr2wStream);
+            if (cr2w == null || cr2w.RootChunk is not Multilayer_Mask mlmask || mlmask.RenderResourceBlob.RenderResourceBlobPC.Chunk is not rendRenderMultilayerMaskBlobPC blob)
             {
                 return false;
             }
 
             // write texture to file
-            DirectoryInfo? subDir = null;
+            DirectoryInfo subdir = null;
             if (args.AsList)
             {
-                subDir = new DirectoryInfo(Path.ChangeExtension(outfile.FullName, null) + "_layers");
-                if (!subDir.Exists)
+                subdir = new DirectoryInfo(Path.ChangeExtension(outfile.FullName, null) + "_layers");
+                if (!subdir.Exists)
                 {
-                    Directory.CreateDirectory(subDir.FullName);
+                    Directory.CreateDirectory(subdir.FullName);
                 }
-            }
-
-            if ((args.AsList && subDir is null) || (!args.AsList && outfile.Directory is null))
-            {
-                _loggerService.Error("directory was null");
-                return false;
             }
 
             var cnt = 0;
@@ -110,7 +107,7 @@ namespace WolvenKit.Modkit.RED4
             foreach (var img in GetRedImages(blob))
             {
                 var mFilename = Path.GetFileNameWithoutExtension(outfile.FullName) + $"_{cnt++}";
-                var newPath = Path.Combine(args.AsList ? subDir!.FullName : outfile.Directory!.FullName, $"{mFilename}.{args.UncookExtension}");
+                var newPath = Path.Combine(args.AsList ? subdir.FullName : outfile.Directory.FullName, $"{mFilename}.{args.UncookExtension}");
 
                 var buffer = args.UncookExtension switch
                 {
@@ -127,15 +124,15 @@ namespace WolvenKit.Modkit.RED4
                 File.WriteAllBytes(newPath, buffer);
                 if (args.AsList)
                 {
-                    masks.Add($"{subDir!.Name}/{mFilename}.{args.UncookExtension}");
+                    masks.Add($"{subdir.Name}/{mFilename}.{args.UncookExtension}");
                 }
             }
 
             if (args.AsList)
             {
                 // write metadata
-                var maskList = Path.ChangeExtension(outfile.FullName, "masklist");
-                File.WriteAllLines(maskList, masks.ToArray());
+                var masklist = Path.ChangeExtension(outfile.FullName, "masklist");
+                File.WriteAllLines(masklist, masks.ToArray());
             }
 
             return true;
@@ -154,7 +151,7 @@ namespace WolvenKit.Modkit.RED4
                 streams.Add(new MemoryStream(img.SaveToDDSMemory()));
                 img.Dispose();
             }
-
+            
             return true;
         }
 

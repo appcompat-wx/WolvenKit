@@ -1,30 +1,60 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace WolvenKit.Common.Model.Arguments
 {
     /// <summary>
-    /// Global Import Arguments
+    /// Global Export Arguments
     /// </summary>
-    public class GlobalImportArgs : AbstractGlobalArgs
+    public class GlobalImportArgs
     {
-        public GlobalImportArgs()
+        /// <summary>
+        /// Export Argument Dictionary.
+        /// </summary>
+        private readonly Dictionary<Type, ImportArgs> _argsList = new()
         {
-            _argsList.Add(typeof(CommonImportArgs), new CommonImportArgs());
-            _argsList.Add(typeof(XbmImportArgs), new XbmImportArgs());
-            _argsList.Add(typeof(GltfImportArgs), new GltfImportArgs());
-            _argsList.Add(typeof(OpusImportArgs), new OpusImportArgs());
-            _argsList.Add(typeof(MlmaskImportArgs), new MlmaskImportArgs());
-            _argsList.Add(typeof(ReImportArgs), new ReImportArgs());
-            _argsList.Add(typeof(FntImportArgs), new FntImportArgs());
-        }
+            { typeof(CommonImportArgs), new CommonImportArgs() },
+            { typeof(XbmImportArgs), new XbmImportArgs() },
+            { typeof(GltfImportArgs), new GltfImportArgs() },
+            { typeof(OpusImportArgs), new OpusImportArgs() },
+            { typeof(MlmaskImportArgs), new MlmaskImportArgs() },
+            { typeof(ReImportArgs), new ReImportArgs() },
+        };
 
         /// <summary>
         /// Register Export Arguments.
         /// </summary>
         /// <param name="exportArgs"></param>
         /// <returns></returns>
-        public GlobalImportArgs Register(params ImportArgs[] exportArgs) => (GlobalImportArgs)base.Register(exportArgs);
+        public GlobalImportArgs Register(params ImportArgs[] exportArgs)
+        {
+            foreach (var arg in exportArgs)
+            {
+                var type = arg.GetType();
+                if (_argsList.ContainsKey(type))
+                {
+                    _argsList[type] = arg;
+                }
+                else
+                {
+                    _argsList.Add(type, arg);
+                }
+            }
+
+            return this;
+        }
+
+        /// <summary>
+        /// Get Argument.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        public T Get<T>() where T : ImportArgs
+        {
+            var arg = _argsList[typeof(T)];
+            return arg as T;
+        }
     }
+
+
 }

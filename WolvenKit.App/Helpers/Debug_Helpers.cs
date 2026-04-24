@@ -1,8 +1,9 @@
-namespace WolvenKit.App.Helpers;
-
-public static class WolvenDBG
+namespace WolvenKit.Functionality.Helpers
 {
-    public static bool EnableTheming { get; set; } = true;
+    public static class WolvenDBG
+    {
+        public static bool EnableTheming { get; set; } = true;
 
-    public static bool EnableDebugLogging { get; set; } = false;
+        public static bool EnableDebugLogging { get; set; } = false;
+    }
 }

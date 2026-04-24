@@ -1,9 +1,7 @@
 using System;
-using System.ComponentModel;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Data;
-using System.Windows.Input;
 using System.Windows.Media;
 using Syncfusion.Windows.PropertyGrid;
 using Syncfusion.Windows.Tools.Controls;
@@ -53,12 +51,10 @@ namespace WolvenKit.Converters
             {
                 return new EnumEditor();
             }
-            /*
             if (PropertyType.IsAssignableTo(typeof(IRedBaseHandle)))
             {
                 return new ChunkPtrEditor();
             }
-            */
             if (PropertyType.IsAssignableTo(typeof(IRedRef)))
             {
                 return new RefEditor();
@@ -74,7 +70,6 @@ namespace WolvenKit.Converters
 
             return null;
         }
-        /*
         public class BaseTypeEditor : ITypeEditor
         {
             private RedBaseTypeEditor _editor;
@@ -93,18 +88,14 @@ namespace WolvenKit.Converters
             public object Create(PropertyInfo propertyInfo)
             {
                 _editor = new RedBaseTypeEditor();
+
                 return _editor;
             }
-
-            public object Create(PropertyDescriptor PropertyDescriptor) => throw new NotImplementedException();
-            public bool ShouldPropertyGridTryToHandleKeyDown(Key key) => true;
-            
             public void Detach(PropertyViewItem property)
             {
 
             }
         }
-        */
 
         public class ColorEditor : ITypeEditor
         {
@@ -141,10 +132,6 @@ namespace WolvenKit.Converters
 
                 return _editor;
             }
-
-            public object Create(PropertyDescriptor PropertyDescriptor) => throw new NotImplementedException();
-            public bool ShouldPropertyGridTryToHandleKeyDown(Key key) => true;
-
             public void Detach(PropertyViewItem property)
             {
 
@@ -227,17 +214,12 @@ namespace WolvenKit.Converters
 
                 return _editor;
             }
-
-            public object Create(PropertyDescriptor PropertyDescriptor) => throw new NotImplementedException();
-            public bool ShouldPropertyGridTryToHandleKeyDown(Key key) => true;
-
             public void Detach(PropertyViewItem property)
             {
 
             }
         }
 
-        /*
         public class ChunkPtrEditor : ITypeEditor
         {
             private HandleTemplateView _editor;
@@ -270,18 +252,14 @@ namespace WolvenKit.Converters
             public object Create(PropertyInfo propertyInfo)
             {
                 _editor = new HandleTemplateView();
+
                 return _editor;
             }
-            
-            public object Create(PropertyDescriptor PropertyDescriptor) => throw new NotImplementedException();
-            public bool ShouldPropertyGridTryToHandleKeyDown(Key key) => true;
-            
             public void Detach(PropertyViewItem property)
             {
 
             }
         }
-        */
 
         public class EnumEditor : ITypeEditor
         {
@@ -318,10 +296,6 @@ namespace WolvenKit.Converters
 
                 return _editor;
             }
-
-            public object Create(PropertyDescriptor PropertyDescriptor) => throw new NotImplementedException();
-            public bool ShouldPropertyGridTryToHandleKeyDown(Key key) => true;
-
             public void Detach(PropertyViewItem property)
             {
 
@@ -363,10 +337,6 @@ namespace WolvenKit.Converters
 
                 return _editor;
             }
-
-            public object Create(PropertyDescriptor PropertyDescriptor) => throw new NotImplementedException();
-            public bool ShouldPropertyGridTryToHandleKeyDown(Key key) => true;
-
             public void Detach(PropertyViewItem property)
             {
 
@@ -408,10 +378,6 @@ namespace WolvenKit.Converters
 
                 return _editor;
             }
-
-            public object Create(PropertyDescriptor PropertyDescriptor) => throw new NotImplementedException();
-            public bool ShouldPropertyGridTryToHandleKeyDown(Key key) => true;
-
             public void Detach(PropertyViewItem property)
             {
 
@@ -453,10 +419,6 @@ namespace WolvenKit.Converters
 
                 return _editor;
             }
-
-            public object Create(PropertyDescriptor PropertyDescriptor) => throw new NotImplementedException();
-            public bool ShouldPropertyGridTryToHandleKeyDown(Key key) => true;
-
             public void Detach(PropertyViewItem property)
             {
 
@@ -498,10 +460,6 @@ namespace WolvenKit.Converters
 
                 return _editor;
             }
-
-            public object Create(PropertyDescriptor PropertyDescriptor) => throw new NotImplementedException();
-            public bool ShouldPropertyGridTryToHandleKeyDown(Key key) => true;
-
             public void Detach(PropertyViewItem property)
             {
 
@@ -543,10 +501,6 @@ namespace WolvenKit.Converters
 
                 return _editor;
             }
-
-            public object Create(PropertyDescriptor PropertyDescriptor) => throw new NotImplementedException();
-            public bool ShouldPropertyGridTryToHandleKeyDown(Key key) => true;
-
             public void Detach(PropertyViewItem property)
             {
 
@@ -588,10 +542,6 @@ namespace WolvenKit.Converters
 
                 return _editor;
             }
-
-            public object Create(PropertyDescriptor PropertyDescriptor) => throw new NotImplementedException();
-            public bool ShouldPropertyGridTryToHandleKeyDown(Key key) => true;
-
             public void Detach(PropertyViewItem property)
             {
 
@@ -633,10 +583,6 @@ namespace WolvenKit.Converters
 
                 return _editor;
             }
-
-            public object Create(PropertyDescriptor PropertyDescriptor) => throw new NotImplementedException();
-            public bool ShouldPropertyGridTryToHandleKeyDown(Key key) => true;
-
             public void Detach(PropertyViewItem property)
             {
 
@@ -678,10 +624,6 @@ namespace WolvenKit.Converters
 
                 return _editor;
             }
-
-            public object Create(PropertyDescriptor PropertyDescriptor) => throw new NotImplementedException();
-            public bool ShouldPropertyGridTryToHandleKeyDown(Key key) => true;
-
             public void Detach(PropertyViewItem property)
             {
 
@@ -725,10 +667,6 @@ namespace WolvenKit.Converters
 
                 return _editor;
             }
-
-            public object Create(PropertyDescriptor PropertyDescriptor) => throw new NotImplementedException();
-            public bool ShouldPropertyGridTryToHandleKeyDown(Key key) => true;
-
             public void Detach(PropertyViewItem property)
             {
 

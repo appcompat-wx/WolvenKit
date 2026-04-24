@@ -1,7 +1,8 @@
 using System.Windows;
 using System.Windows.Controls;
-using WolvenKit.App.ViewModels.Shell;
+using ReactiveUI;
 using WolvenKit.RED4.Types;
+using WolvenKit.ViewModels.Shell;
 
 namespace WolvenKit.Views.Editors
 {
@@ -10,25 +11,12 @@ namespace WolvenKit.Views.Editors
     /// </summary>
     public partial class RedCurveEditor : UserControl
     {
-        private ChunkViewModel _cvm => DataContext as ChunkViewModel;
+        public ChunkViewModel cvm => DataContext as ChunkViewModel;
 
         public RedCurveEditor()
         {
             InitializeComponent();
         }
-
-        public bool ShowQuickAccess
-        {
-            get => (bool)GetValue(ShowQuickAccessProperty);
-            set => SetValue(ShowQuickAccessProperty, value);
-        }
-
-        public static readonly DependencyProperty ShowQuickAccessProperty = DependencyProperty.Register(
-            nameof(ShowQuickAccess),
-            typeof(bool),
-            typeof(RedCurveEditor),
-            new PropertyMetadata(false)
-            );
 
         //public IRedLegacySingleChannelCurve RedCurve
         //{
@@ -41,9 +29,10 @@ namespace WolvenKit.Views.Editors
 
         private void CurveEditorButton_OnClick(object sender, RoutedEventArgs e)
         {
-            if (_cvm.Data is not IRedLegacySingleChannelCurve data)
+            var data = (IRedLegacySingleChannelCurve)cvm.Data;
+            if (data == null)
             {
-                data = (IRedLegacySingleChannelCurve)System.Activator.CreateInstance(_cvm.PropertyType);
+                data = (IRedLegacySingleChannelCurve)System.Activator.CreateInstance(cvm.PropertyType);
             }
 
             var curveEditorWindow = new CurveEditorWindow(data);
@@ -55,7 +44,7 @@ namespace WolvenKit.Views.Editors
                 {
                     if (c.Points.Count == 0)
                     {
-                        _cvm.Data = null;
+                        cvm.Data = null;
                     }
                     else
                     {
@@ -67,9 +56,9 @@ namespace WolvenKit.Views.Editors
                             data.Add((float)point.Item1, point.Item2);
                         }
 
-                        _cvm.Data = data;
-                        _cvm.NotifyChain(nameof(ChunkViewModel.Data));
-                        _cvm.RecalculateProperties();
+                        cvm.Data = data;
+                        cvm.NotifyChain("Data");
+                        cvm.RecalculateProperties();
                     }
                 }
             }

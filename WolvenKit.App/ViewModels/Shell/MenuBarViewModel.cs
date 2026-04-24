@@ -1,189 +1,50 @@
-using System.Collections.Generic;
-using System.ComponentModel;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using WolvenKit.App.Extensions;
-using WolvenKit.App.Helpers;
-using WolvenKit.App.Services;
-using WolvenKit.App.ViewModels.Dialogs;
-using WolvenKit.App.ViewModels.Tools;
-using WolvenKit.Core;
+using System;
+using System.IO;
+using System.Linq;
+using System.Reactive;
+using System.Reactive.Linq;
+using System.Threading.Tasks;
+using ReactiveUI;
+using WolvenKit.Common;
+using WolvenKit.Common.Interfaces;
+using WolvenKit.Core.Services;
+using WolvenKit.Functionality.Commands;
+using WolvenKit.Functionality.Services;
+using WolvenKit.Models;
+using WolvenKit.Modkit.RED4;
+using WolvenKit.RED4.Archive;
+using WolvenKit.RED4.CR2W.Archive;
 
-namespace WolvenKit.App.ViewModels.Shell;
-
-public partial class MenuBarViewModel : ObservableObject
+namespace WolvenKit.ViewModels.Shell
 {
-    private bool _automaticUpdate;
-    public ISettingsManager SettingsManager { get; }
-    public AppViewModel MainViewModel { get; }
-
-    public WikiLinksInstance WikiLinks { get; } = new();
-
-    public MenuBarViewModel(ISettingsManager settingsManager, AppViewModel appViewModel)
+    public class MenuBarViewModel : ReactiveObject
     {
-        MainViewModel = appViewModel;
-        SettingsManager = settingsManager;
-        EnableRedmodCommands = settingsManager.ShowRedmodInRibbon;
+        private readonly IProgressService<double> _progressService;
+        private readonly IArchiveManager _archiveManager;
+        private readonly IModTools _modTools;
 
-        MainViewModel.DockedViewVisibleChanged += MainViewModel_OnDockedViewVisibleChanged;
-        SettingsManager.PropertyChanged += SettingsManager_PropertyChanged;
 
-        appViewModel.PropertyChanged += AppViewModel_PropertyChanged;
-    }
 
-    private void SettingsManager_PropertyChanged(object? sender, PropertyChangedEventArgs e) =>
-        EnableRedmodCommands = SettingsManager.ShowRedmodInRibbon;
-
-    private void MainViewModel_OnDockedViewVisibleChanged(object? sender, AppViewModel.DockedViewVisibleChangedEventArgs e)
-    {
-        _automaticUpdate = true;
-
-        switch (e.Element)
+        public MenuBarViewModel(
+            ISettingsManager settingsManager,
+            IProgressService<double> progressService,
+            IArchiveManager archiveManager,
+            IModTools modTools,
+            AppViewModel appViewModel)
         {
-            case ProjectExplorerViewModel:
-                ProjectExplorerCheckbox = e.Element.IsVisible;
-                break;
-            case AssetBrowserViewModel:
-                AssetBrowserCheckbox = e.Element.IsVisible;
-                break;
-            case PropertiesViewModel:
-                PropertiesCheckbox = e.Element.IsVisible;
-                break;
-            case LogViewModel:
-                LogCheckbox = e.Element.IsVisible;
-                break;
-            case TweakBrowserViewModel:
-                TweakBrowserCheckbox = e.Element.IsVisible;
-                break;
-            case LocKeyBrowserViewModel:
-                LocKeyBrowserCheckbox = e.Element.IsVisible;
-                break;
-            default:
-                break;
+            MainViewModel = appViewModel;
+            _archiveManager = archiveManager;
+            _progressService = progressService;
+            _modTools = modTools;
+            SettingsManager = settingsManager;
+
+            OpenGameFolderCommand = ReactiveCommand.Create(() => Commonfunctions.ShowFolderInExplorer(SettingsManager.GetRED4GameRootDir()));
         }
 
-        _automaticUpdate = false;
-    }
+        public ISettingsManager SettingsManager { get; }
+        public AppViewModel MainViewModel { get; }
 
-    [RelayCommand]
-    private void OpenGameFolder() => Commonfunctions.ShowFolderInExplorer(SettingsManager.GetRED4GameRootDir());
+        public ReactiveCommand<Unit, Unit> OpenGameFolderCommand { get; }
 
-    public Dictionary<string, List<string>> GenerateItemCodesFromYaml()
-    {
-        if (MainViewModel.ActiveProject is not { } project)
-        {
-            return [];
-        }
-        var files = MainViewModel.ProjectResourceTools.GetProjectFiles(".yaml", ProjectFolder.Resources);
-
-        Dictionary<string, List<string>> allItems = [];
-
-        foreach (var file in files)
-        {
-            allItems.AddRange(YamlHelper.GetItemRecordsFromYaml(project.GetAbsolutePath(file)));
-        }
-
-        return allItems;
-    }
-
-    [ObservableProperty]
-    private bool _projectExplorerCheckbox;
-
-    [ObservableProperty] private bool _enableRedmodCommands;
-
-    partial void OnProjectExplorerCheckboxChanged(bool value)
-    {
-        if (_automaticUpdate)
-        {
-            return;
-        }
-
-        MainViewModel.GetToolViewModel<ProjectExplorerViewModel>().IsVisible = value;
-    }
-
-    [ObservableProperty]
-    private bool _assetBrowserCheckbox;
-    partial void OnAssetBrowserCheckboxChanged(bool value)
-    {
-        if (_automaticUpdate)
-        {
-            return;
-        }
-
-        MainViewModel.GetToolViewModel<AssetBrowserViewModel>().IsVisible = value;
-    }
-
-    [ObservableProperty]
-    private bool _propertiesCheckbox;
-    partial void OnPropertiesCheckboxChanged(bool value)
-    {
-        if (_automaticUpdate)
-        {
-            return;
-        }
-
-        MainViewModel.GetToolViewModel<PropertiesViewModel>().IsVisible = value;
-    }
-
-    [ObservableProperty]
-    private bool _logCheckbox;
-    partial void OnLogCheckboxChanged(bool value)
-    {
-        if (_automaticUpdate)
-        {
-            return;
-        }
-
-        MainViewModel.GetToolViewModel<LogViewModel>().IsVisible = value;
-    }
-
-    [ObservableProperty]
-    private bool _tweakBrowserCheckbox;
-    partial void OnTweakBrowserCheckboxChanged(bool value)
-    {
-        if (_automaticUpdate)
-        {
-            return;
-        }
-
-        MainViewModel.GetToolViewModel<TweakBrowserViewModel>().IsVisible = value;
-    }
-
-    [ObservableProperty]
-    private bool _locKeyBrowserCheckbox;
-    partial void OnLocKeyBrowserCheckboxChanged(bool value)
-    {
-        if (_automaticUpdate)
-        {
-            return;
-        }
-
-        MainViewModel.GetToolViewModel<LocKeyBrowserViewModel>().IsVisible = value;
-    }
-
-    [ObservableProperty] private bool? _hasOpenProject;
-
-    private void AppViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        HasOpenProject ??= MainViewModel.ActiveProject != null;
-        if (e.PropertyName == nameof(AppViewModel.ActiveProject))
-        {
-            HasOpenProject = true;
-        }
-    }
-
-    public void AddItemCodesToFiles(AddItemsToStoreDialogViewModel? dialogVm)
-    {
-        if (dialogVm is null || dialogVm.ItemCodes.Count == 0 ||
-            (string.IsNullOrEmpty(dialogVm.RedsPath) && string.IsNullOrEmpty(dialogVm.YamlPath)))
-        {
-            return;
-        }
-
-        MainViewModel.ProjectResourceTools.AddItemCodesToStoreFiles(
-            dialogVm.ItemCodes,
-            dialogVm.YamlPath,
-            dialogVm.RedsPath
-        );
     }
 }

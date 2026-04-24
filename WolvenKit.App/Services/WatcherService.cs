@@ -1,464 +1,220 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using CommunityToolkit.Mvvm.ComponentModel;
-using WolvenKit.App.Models;
-using WolvenKit.App.Models.ProjectManagement.Project;
-using WolvenKit.Core.Interfaces;
-using WolvenKit.RED4.Types.Exceptions;
+using DynamicData;
+using ReactiveUI;
+using WolvenKit.Models;
+using WolvenKit.ProjectManagement.Project;
 
-namespace WolvenKit.App.Services;
-
-/// <summary>
-/// This service watches certain locations in the game files and notifies changes
-/// </summary>
-public partial class WatcherService : ObservableObject, IWatcherService
+namespace WolvenKit.Functionality.Services
 {
-    #region fields
-
-    private readonly ILoggerService? _loggerService;
-
-    private string _projectDirectory = string.Empty;
-    private FileSystemModel? _projectFileSystemModel;
-
-    private readonly FileSystemWatcher _modsWatcher;
-
-    private readonly object _refreshLock = new();
-
-    private Task? _updateTask;
-    private CancellationTokenSource _updateThreadCancellationTokenSource = new();
-
-    private readonly ConcurrentQueue<FileSystemEventArgsWrapper> _fileChanges = new();
-
-    private readonly ConcurrentDictionary<string, FileSystemModel> _fileLookup = new();
-    private readonly ConcurrentDictionary<string, long> _removedFiles = new();
-
-    [ObservableProperty]
-    private DispatchedObservableCollection<FileSystemModel> _fileList = new();
-
-    [ObservableProperty]
-    private DispatchedObservableCollection<FileSystemModel> _fileTree = new();
-
-    private static readonly List<string> s_ignoredExtensions =
-    [
-        "tmp",
-        "pdnsave",
-        "bak", // photoshop
-        "blend@", // Blender temp files
-        "blend1", // Blender temp files
-    ];
-
-    private static bool HasIgnoredExtension(string? fileName)
+    /// <summary>
+    /// This service watches certain locations in the game files and notifies changes
+    /// </summary>
+    public class WatcherService : ReactiveObject, IWatcherService
     {
-        var fileExtension = Path.GetExtension(fileName)?.ToUpper();
-        return fileExtension is not null && s_ignoredExtensions.Any(partial =>
-            fileExtension.Contains(partial, StringComparison.OrdinalIgnoreCase));
-    }
+        #region fields
 
-    private bool _isWatcherStopped;
+        private readonly SourceCache<FileModel, ulong> _files = new(_ => _.Hash);
+        public IObservableCache<FileModel, ulong> Files => _files;
 
-    public bool IsWatcherStopped => _isWatcherStopped;
+        private readonly IProjectManager _projectManager;
 
-    #endregion
+        private FileSystemWatcher _modsWatcher;
 
-    public WatcherService(ILoggerService? loggerService)
-    {
-        _loggerService = loggerService;
+        public FileModel LastSelect { get; set; }
 
-        _modsWatcher = new FileSystemWatcher
+        #endregion
+
+        public WatcherService(IProjectManager projectManager)
         {
-            Filter = "*",
-            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Attributes | NotifyFilters.DirectoryName,
-            IncludeSubdirectories = true
-        };
-        _modsWatcher.Created += OnChanged;
-        _modsWatcher.Changed += OnChanged;
-        _modsWatcher.Deleted += OnChanged;
-        _modsWatcher.Renamed += OnRenamed;
-    }
+            _projectManager = projectManager;
 
-    public void WatchProject(Cp77Project project)
-    {
-        _projectDirectory = project.FileDirectory;
-        _projectFileSystemModel = new FileSystemModel(null, FileSystemModel.ProjectDirName, _projectDirectory, true);
-
-        WatchLocation();
-        Refresh();
-    }
-
-
-    public void Resume() => _modsWatcher.EnableRaisingEvents = true;
-
-    public void UnwatchProject(Cp77Project? project)
-    {
-        _isWatcherStopped = true;
-        UnwatchLocation();
-    }
-
-    private void WatchLocation()
-    {
-        _modsWatcher.Path = _projectDirectory;
-        _modsWatcher.EnableRaisingEvents = true;
-    }
-
-    private void UnwatchLocation()
-    {
-        _modsWatcher.EnableRaisingEvents = false;
-
-        ForceStop();
-        Clear();
-    }
-
-    private static readonly List<string> s_backupFilePartials =
-    [
-        "_tmp", ".bak", ".bkp"
-    ];
-
-    private void Update(CancellationToken cancellationToken)
-    {
-        while (true)
-        {
-            if (cancellationToken.IsCancellationRequested)
+            _projectManager.WhenAnyValue(_ => _.IsProjectLoaded).Subscribe(async loaded =>
             {
-                break;
-            }
-
-            if (!_fileChanges.TryDequeue(out var e))
-            {
-                _removedFiles.Clear();
-
-                Thread.Sleep(100);
-                continue;
-            }
-
-            var extension = Path.GetExtension(e.Name);
-            if (!string.IsNullOrEmpty(extension) && HasIgnoredExtension(e.Name))
-            {
-                continue;
-            }
-
-            try
-            {
-                switch (e.ChangeType)
+                if (loaded)
                 {
-                    case WatcherChangeTypes.Created:
-                        Create(e);
-                        break;
-                    case WatcherChangeTypes.Deleted:
-                        Delete(e);
-                        break;
-                    case WatcherChangeTypes.Changed:
-                        Changed(e);
-                        break;
-                    case WatcherChangeTypes.Renamed:
-                        Renamed(e);
-                        break;
-                    case WatcherChangeTypes.All:
-                        throw new Exception();
-                    default:
-                        throw new ArgumentOutOfRangeException();
+                    WatchLocation(_projectManager.ActiveProject.ProjectDirectory);
+                    await RefreshAsync(_projectManager.ActiveProject);
                 }
-            }
-            catch (Exception)
-            {
-                if (e.Name is not null && !s_backupFilePartials.Any(partial => e.Name.Contains(partial)))
+                else
                 {
-                    _loggerService?.Error($"Project Explorer: something went wrong while changing {e.Name}. You can try a manual refresh.");
+                    UnwatchLocation();
                 }
-            }
+
+            });
         }
 
-        void Create(FileSystemEventArgsWrapper e)
+        private void WatchLocation(string location)
         {
-            var timestamp = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
+            _modsWatcher = new FileSystemWatcher(location, "*")
+            {
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Attributes | NotifyFilters.DirectoryName,
+                IncludeSubdirectories = true
+            };
+            _modsWatcher.Created += OnChanged;
+            _modsWatcher.Changed += OnChanged;
+            _modsWatcher.Deleted += OnChanged;
+            _modsWatcher.Renamed += OnRenamed;
+            _modsWatcher.EnableRaisingEvents = true;
+        }
 
-            if (HasIgnoredExtension(e.Name))
+        private void UnwatchLocation()
+        {
+            if (_modsWatcher == null)
             {
                 return;
             }
 
-            // Check if delay has passed
-            if (e.Ticks > timestamp)
+            _modsWatcher.EnableRaisingEvents = false;
+
+            _modsWatcher.Created -= OnChanged;
+            _modsWatcher.Changed -= OnChanged;
+            _modsWatcher.Deleted -= OnChanged;
+            _modsWatcher.Renamed -= OnRenamed;
+            _modsWatcher.EnableRaisingEvents = false;
+
+            //_files.Clear();
+        }
+
+        public bool IsSuspended { get; set; }
+
+
+        /// <summary>
+        /// initial refresh
+        /// </summary>
+        public async Task RefreshAsync(Cp77Project proj) => await Task.Run(() => DetectProjectFiles(proj));
+
+        private void DetectProjectFiles(Cp77Project proj)
+        {
+            var allFiles = Directory
+                    .GetFileSystemEntries(proj.ProjectDirectory, "*", SearchOption.AllDirectories)
+                ;
+
+            _files.Edit(innerList =>
             {
-                _fileChanges.Enqueue(e);
-                return;
-            }
+                innerList.Clear();
+                innerList.AddOrUpdate(allFiles.Select(_ => new FileModel(_, proj)));
+            });
+        }
 
-            if (_removedFiles.TryGetValue(e.FullPath, out var eventAddedAt))
+        private IEnumerable<ulong> GetChildrenKeysRecursive(ulong key)
+        {
+            var x = new List<ulong>();
+            var lookup = _files.Items.ToLookup(x => x.ParentHash);
+
+            foreach (var fileModel in lookup[key])
             {
-                // File got removed again before the create event was processed. Skip it
-                if (e.EventAddedAt < eventAddedAt)
-                {
-                    return;
-                }
+                x.Add(fileModel.Hash);
+                x.AddRange(GetChildrenKeysRecursive(fileModel.Hash));
             }
+            return x;
+        }
 
-            // Create event was sent but file doesn't exist yet?!?! Don't know why. Just requeue with delay
-            if (!File.Exists(e.FullPath) && !Directory.Exists(e.FullPath))
-            {
-                e.Ticks = timestamp + 100;
-                e.RetryCount++;
+        public FileModel GetFileModelFromHash(ulong hash)
+        {
+            var lookup = _files.Items.ToLookup(x => x.Hash);
 
-                _fileChanges.Enqueue(e);
-                return;
-            }
+            return lookup[hash].FirstOrDefault();
+        }
 
-            if (e.RetryCount > 10)
-            {
-                // If it still doesn't work after 10 retries... idk
-                _loggerService?.Warning($"Project explorer: Failed adding {e.Name}. You can try a manual refresh.");
-                return;
-            }
-
-            var projectPath = e.FullPath[(_projectDirectory.Length + 1)..];
-            if (_fileLookup.ContainsKey(projectPath))
-            {
-                return;
-            }
-
-            var pathParts = projectPath.Split(Path.DirectorySeparatorChar);
-
-            FileSystemModel? current = null;
-            var parent = _projectFileSystemModel;
-            for (var i = 0; i < pathParts.Length; i++)
-            {
-                var part = pathParts[i];
-
-                var tmpParentPath = Path.Combine(pathParts[..i]);
-                var tmpPath = Path.Combine(pathParts[..(i + 1)]);
-
-                if (!string.IsNullOrEmpty(tmpParentPath))
-                {
-                    parent = _fileLookup[tmpParentPath];
-                }
-
-                if (_fileLookup.TryGetValue(tmpPath, out current))
-                {
-                    continue;
-                }
-
-                var isDirectory = true;
-                if (i == pathParts.Length - 1)
-                {
-                    var attr = File.GetAttributes(e.FullPath);
-                    isDirectory = attr.HasFlag(FileAttributes.Directory);
-                }
-
-                current = new FileSystemModel(parent, part, tmpPath, isDirectory);
-                if (!current.IsDirectory)
-                {
-                    FileList.Add(current);
-                }
-
-                if (!_fileLookup.TryAdd(tmpPath, current))
-                {
-                    continue;
-                }
-
-                if (string.IsNullOrEmpty(tmpParentPath))
-                {
-                    FileTree.Add(current);
-                }
-
-                if (parent != null && !parent.Children.Contains(current))
-                {
-                    parent.Children.Add(current);
-                }
-            }
-
-            if (current is not { IsDirectory: true })
+        private void OnChanged(object sender, FileSystemEventArgs e)
+        {
+            if (IsSuspended)
             {
                 return;
             }
 
-            var children = Directory.GetFileSystemEntries(current.FullName, "*", SearchOption.AllDirectories);
-            foreach (var child in children)
-            {
-                var name = child[(_projectDirectory.Length + 1)..];
-                if (!_fileLookup.ContainsKey(name))
-                {
-                    _fileChanges.Enqueue(
-                        new FileSystemEventArgsWrapper(new FileSystemEventArgs(WatcherChangeTypes.Created, _projectDirectory, name)));
-                }
-            }
-        }
-
-        void Changed(FileSystemEventArgsWrapper e)
-        {
-            if (string.IsNullOrEmpty(e.Name))
-            {
-                throw new TodoException();
-            }
-
-            if (!_fileLookup.TryGetValue(e.Name, out var item))
-            {
-                if (!_isWatcherStopped)
-                {
-                    _loggerService?.Warning($"Failed to refresh {e.Name}. This is just a UI glitch!");
-                }
-                return;
-            }
-
-            if (item.IsDirectory)
+            if (Path.GetExtension(e.Name).ToUpper().Equals(".PDNSAVE", StringComparison.Ordinal) ||
+                Path.GetExtension(e.Name).ToUpper().Equals(".TMP", StringComparison.Ordinal
+                )
+                )
             {
                 return;
             }
 
-            item.UpdateFileInfo();
+            switch (e.ChangeType)
+            {
+                case WatcherChangeTypes.Created:
+                {
+                    try
+                    {
+                        LastSelect = new FileModel(e.FullPath, _projectManager.ActiveProject);
+                        _files.AddOrUpdate(LastSelect);
+                    }
+                    catch (Exception)
+                    {
+                        // reading too fast?
+                    }
+                    break;
+                }
+                case WatcherChangeTypes.Deleted:
+                {
+                    var key = FileModel.GenerateKey(e.FullPath, _projectManager.ActiveProject);
+                    _files.Edit(inner =>
+                    {
+                        inner.RemoveKeys(GetChildrenKeysRecursive(key));
+                        inner.Remove(key);
+                    });
+                    break;
+                }
+                case WatcherChangeTypes.All:
+                    break;
+                case WatcherChangeTypes.Changed:
+                    break;
+                case WatcherChangeTypes.Renamed:
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
         }
 
-        void Renamed(FileSystemEventArgsWrapper e)
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void OnRenamed(object sender, RenamedEventArgs e)
         {
-            if (e.Args is not RenamedEventArgs renamedEventArgs)
+            if (IsSuspended)
             {
-                throw new Exception();
-            }
-
-            if (string.IsNullOrEmpty(renamedEventArgs.OldName) || string.IsNullOrEmpty(renamedEventArgs.Name))
-            {
-                throw new Exception();
-            }
-
-            if (Path.GetExtension(renamedEventArgs.OldName).Equals(".tmp", StringComparison.InvariantCultureIgnoreCase))
-            {
-                _fileChanges.Enqueue(new FileSystemEventArgsWrapper(new FileSystemEventArgs(WatcherChangeTypes.Created, _projectDirectory, renamedEventArgs.Name)));
                 return;
             }
 
-            foreach (var key in _fileLookup.Keys)
+            var newIsTempFile = Path.GetExtension(e.Name).ToUpper().Equals(".TMP", StringComparison.Ordinal) ||
+                                 Path.GetExtension(e.Name).ToUpper().Equals(".PDNSAVE", StringComparison.Ordinal);
+
+            switch (e.ChangeType)
             {
-                if (!key.StartsWith(renamedEventArgs.OldName))
+                case WatcherChangeTypes.Renamed:
                 {
-                    continue;
+                    var key = FileModel.GenerateKey(e.OldFullPath, _projectManager.ActiveProject);
+                    _files.RemoveKey(key);
+
+                    if (!newIsTempFile)
+                    {
+                        _files.AddOrUpdate(new FileModel(e.FullPath, _projectManager.ActiveProject));
+                    }
+                    break;
                 }
 
-                var newKey = renamedEventArgs.Name + key.Substring(renamedEventArgs.OldName.Length);
-                if (!_fileLookup.TryRemove(key, out var item) || !_fileLookup.TryAdd(newKey, item))
-                {
-                    throw new Exception();
-                }
-
-                if (key != renamedEventArgs.OldName)
-                {
-                    continue;
-                }
-
-                var newName = renamedEventArgs.Name.Split(Path.DirectorySeparatorChar)[^1];
-                item.Rename(newName);
-            }
-        }
-
-        void Delete(FileSystemEventArgsWrapper e)
-        {
-            if (string.IsNullOrEmpty(e.Name))
-            {
-                throw new TodoException();
+                case WatcherChangeTypes.Created:
+                    break;
+                case WatcherChangeTypes.Deleted:
+                    break;
+                case WatcherChangeTypes.Changed:
+                    break;
+                case WatcherChangeTypes.All:
+                    break;
+                default:
+                    break;
             }
 
-            if (_fileLookup.TryRemove(e.Name, out var item))
-            {
-                FileTree.Remove(item);
-                FileList.Remove(item);
-
-                ClearChildren(item);
-
-                item.Parent?.Children.Remove(item);
-            }
-
-            _removedFiles.TryAdd(e.FullPath, e.EventAddedAt);
-
-            void ClearChildren(FileSystemModel model)
-            {
-                foreach (var subModel in model.Children)
-                {
-                    ClearChildren(subModel);
-
-                    _fileLookup.Remove(subModel.RawRelativePath, out _);
-                    FileList.Remove(subModel);
-                }
-            }
-        }
-    }
-
-    public void Refresh()
-    {
-        lock (_refreshLock)
-        {
-            InternalRefresh();
-        }
-    }
-
-    private void Clear()
-    {
-        _fileChanges.Clear();
-        _fileLookup.Clear();
-        FileTree.Clear();
-        FileList.Clear();
-    }
-
-    private void InternalRefresh()
-    {
-        if (string.IsNullOrEmpty(_projectDirectory))
-        {
-            return;
         }
 
-        ForceStop();
-        Clear();
 
-        var allFiles = new DirectoryInfo(_projectDirectory).GetFileSystemInfos("*", SearchOption.AllDirectories);
-        foreach (var fileSystemInfo in allFiles)
-        {
-            var name = fileSystemInfo.FullName[(_projectDirectory.Length + 1)..];
-            _fileChanges.Enqueue(new FileSystemEventArgsWrapper(new FileSystemEventArgs(WatcherChangeTypes.Created, _projectDirectory, name)));
-        }
 
-        _updateThreadCancellationTokenSource = new CancellationTokenSource();
-        _updateTask = Task.Factory.StartNew(() => Update(_updateThreadCancellationTokenSource.Token), _updateThreadCancellationTokenSource.Token);
-
-        _modsWatcher.EnableRaisingEvents = true;
-    }
-
-    public void ForceStop()
-    {
-        _modsWatcher.EnableRaisingEvents = false;
-
-        if (_updateTask != null)
-        {
-            _updateThreadCancellationTokenSource.Cancel();
-            if (!_updateTask.IsCanceled && !_updateTask.Wait(1000))
-            {
-                throw new Exception();
-            }
-        }
-    }
-
-    public void Suspend() => _modsWatcher.EnableRaisingEvents = false;
-
-    private void OnRenamed(object sender, RenamedEventArgs e) => _fileChanges.Enqueue(new FileSystemEventArgsWrapper(e));
-
-    private void OnChanged(object sender, FileSystemEventArgs e) => _fileChanges.Enqueue(new FileSystemEventArgsWrapper(e));
-
-    private class FileSystemEventArgsWrapper
-    {
-        public FileSystemEventArgsWrapper(FileSystemEventArgs fileSystemEventArgs)
-        {
-            Args = fileSystemEventArgs;
-        }
-
-        public FileSystemEventArgs Args { get; }
-
-        public string? Name => Args.Name;
-        public string FullPath => Args.FullPath;
-        public WatcherChangeTypes ChangeType => Args.ChangeType;
-
-        public int RetryCount { get; set; }
-        public long Ticks { get; set; }
-
-        public long EventAddedAt { get; } = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
     }
 }

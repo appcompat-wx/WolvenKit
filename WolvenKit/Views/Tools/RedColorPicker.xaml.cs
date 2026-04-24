@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Media;
 using ColorPicker;
-using WolvenKit.App.ViewModels.Shell;
 using WolvenKit.RED4.Types;
 
 namespace WolvenKit.Views.Tools
@@ -21,14 +20,6 @@ namespace WolvenKit.Views.Tools
 
             Color.PropertyChanged += OnColorPropertyChanged;
         }
-
-        public bool ShowAlpha
-        {
-            get => (bool)GetValue(ShowAlphaProperty);
-            set => SetValue(ShowAlphaProperty, value);
-        }
-        public static readonly DependencyProperty ShowAlphaProperty = DependencyProperty.Register(
-            nameof(ShowAlpha), typeof(bool), typeof(RedColorPicker), new PropertyMetadata(default(bool)));
 
         public CColor RedColor
         {
@@ -57,7 +48,7 @@ namespace WolvenKit.Views.Tools
         private void UpdateBrush()
         {
             SetCurrentValue(BrushProperty, new SolidColorBrush(System.Windows.Media.Color.FromArgb(
-                (byte)(ShowAlpha ? Math.Round(Color.A) : 255),
+                (byte)Math.Round(Color.A),
                 (byte)Math.Round(Color.RGB_R),
                 (byte)Math.Round(Color.RGB_G),
                 (byte)Math.Round(Color.RGB_B))));
@@ -87,17 +78,9 @@ namespace WolvenKit.Views.Tools
                 Green = (CFloat)Color.RGB_G / 255F,
                 Blue = (CFloat)Color.RGB_B / 255F
             });
-            
 
             UpdateBrush();
 
-            if (DataContext is ChunkViewModel cvm)
-            {
-                cvm.Tab?.Parent.SetIsDirty(true);
-                cvm.NotifyChain(nameof(ChunkViewModel.Data));
-                cvm.RecalculateProperties();
-            }
-            
             _updateFromColor = false;
         }
 

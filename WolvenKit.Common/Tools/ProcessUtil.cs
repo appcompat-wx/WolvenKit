@@ -14,7 +14,7 @@ public static class ProcessUtil
     /// <param name="fileName"></param>
     /// <param name="arguments"></param>
     /// <returns>true if exit code is 0</returns>
-    public static async Task<bool> RunProcessAsync(string fileName, string arguments, string? workingDir = null)
+    public static async Task<bool> RunProcessAsync(string fileName, string arguments, string workingDir = "")
     {
         Process p;
         var eventHandled = new TaskCompletionSource<bool>();
@@ -85,7 +85,7 @@ public static class ProcessUtil
     /// <param name="fileName"></param>
     /// <param name="arguments"></param>
     /// <returns>true if exit code is 0</returns>
-    public static async Task<bool> RunRedmodAsync(string fileName, string arguments, string workingDir = "", IProgressService<double>? progress = null)
+    public static async Task<bool> RunRedmodAsync(string fileName, string arguments, string workingDir = "", IProgressService<double> progress = null)
     {
         Process p;
         var eventHandled = new TaskCompletionSource<bool>();
@@ -119,10 +119,7 @@ public static class ProcessUtil
                             progress.Report(stageInt / 5);
                         }
                     }
-                    if (!string.IsNullOrEmpty(str))
-                    {
-                        Log.Information(str);
-                    }
+                    Log.Information(str);
                 };
                 p.ErrorDataReceived += (s, e) =>
                 {
@@ -154,7 +151,7 @@ public static class ProcessUtil
             }
 
             // Wait for Exited event, but not more than 30 seconds.
-            await await Task.WhenAny(eventHandled.Task/*, Task.Delay(30000)*/);
+            await await Task.WhenAny(eventHandled.Task, Task.Delay(30000));
             return p.ExitCode == 0;
         }
     }

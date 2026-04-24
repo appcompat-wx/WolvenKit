@@ -5,25 +5,14 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="clr-namespace:WolvenKit.Views.Editors"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d"
-    d:DesignWidth="240"
-    d:DesignHeight="48">
-    <Grid
-        Background="{StaticResource BackgroundColor_Control}"
-        DataContext="{Binding RelativeSource={RelativeSource FindAncestor,
-                                                             AncestorType={x:Type local:RedBoolEditor}}}">
-        <Grid.RowDefinitions>
-            <RowDefinition MinHeight="{DynamicResource WolvenKitRedEditorRowMinHeight}" />
-        </Grid.RowDefinitions>
+    xmlns:syncfusion="http://schemas.syncfusion.com/wpf"
+    d:DesignHeight="100"
+    d:DesignWidth="400"
+    mc:Ignorable="d">
 
-        <Viewbox
-            Height="{DynamicResource WolvenKitIconTiny}"
-            MaxHeight="{DynamicResource WolvenKitIconTiny}"
-            Margin="{DynamicResource WolvenKitMarginTinyVertical}"
-            HorizontalAlignment="Left"
-            VerticalAlignment="Center"
-            Stretch="Uniform">
-            <CheckBox IsChecked="{Binding IsChecked}" />
-        </Viewbox>
+    <Grid DataContext="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:RedBoolEditor}}}">
+
+        <CheckBox IsChecked="{Binding IsChecked}" />
+
     </Grid>
 </UserControl>

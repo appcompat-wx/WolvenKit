@@ -1,5 +1,6 @@
 using System.IO;
 using System.Threading.Tasks;
+using SharpDX;
 
 namespace CP77Tools.Tasks;
 
@@ -61,12 +62,16 @@ public partial class ConsoleFunctions
 
         #endregion checks
 
-        if (!_modTools.Pack(basedir, outDir))
+        var ar = _modTools.Pack(basedir, outDir);
+        if (ar != null)
+        {
+            _loggerService.Success($"Finished packing {ar.ArchiveAbsolutePath}.");
+            return 0;
+        }
+        else
         {
             _loggerService.Error($"Packing failed.");
             return ERROR_GENERAL_ERROR;
         }
-
-        return 0;
     }
 }

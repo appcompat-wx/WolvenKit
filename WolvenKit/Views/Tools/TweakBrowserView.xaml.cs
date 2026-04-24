@@ -3,7 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using ReactiveUI;
-using WolvenKit.App.ViewModels.Tools;
+using WolvenKit.ViewModels.Tools;
 
 namespace WolvenKit.Views.Tools
 {

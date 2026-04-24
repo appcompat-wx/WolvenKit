@@ -1,98 +1,58 @@
+using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
-using CommunityToolkit.Mvvm.ComponentModel;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using WolvenKit.Common.RED4.Compiled;
 
 namespace WolvenKit.App.Models;
 public class LaunchProfile
 {
-    [Category("Build and Install")]
-    [Display(Name = "Create Backup of previous build")]
+    [Category("General")]
+    [Display(Name = "Create Backup")]
     public bool CreateBackup { get; set; }
 
-    [Category("Build and Install")]
-    [Display(Name = "Create zip file")]
-    public bool CreateZipFile { get; set; }
-
-    [Category("Build and Install")]
-    [Display(Name = "Install to Game directory")]
+    [Category("Install")]
+    [Display(Name = "Install to Game")]
     public bool Install { get; set; }
-    
     // installsound files
     // install tweak files
     // install script files
 
-    [Category("Build and Install")]
-    [Display(Name = "Clean before build to prevent errors?")]
-    public bool CleanAll { get; set; } = true;
+    [Category("Install")]
+    [Display(Name = "Clean packed directory completely first")]
+    public bool CleanAll { get; set; }
 
-    [Category("Build and Install")]
-    [Display(Name = "Clean after build to save disk space?")]
-    public bool CleanAllPostBuild { get; set; } = false;
-
-    /// <summary>
-    /// Pack as REDMod
-    /// </summary>
-    [Category("Bundle: REDmod")]
+    [Category("REDmod")]
     [Display(Name = "Pack as REDmod")]
     public bool IsRedmod { get; set; }
 
-    /// <summary>
-    /// Install as REDMod
-    /// </summary>
-    [Category("Install: REDmod")]
-    [Display(Name = "Install as REDmod")]
+    [Category("REDmod")]
+    [Display(Name = "Deploy With REDmod")]
     public bool DeployWithRedmod { get; set; }
 
     [Category("Game Launch")]
-    [Display(Name = "Launch Game")]
+    [Display(Name = "Launch Game after Installing")]
     public bool LaunchGame { get; set; }
-
-    private bool _loadLastSave;
-    [Category("Game Launch")]
-    [Display(Name = "Load last savegame")]
-    public bool LoadLastSave
-    {
-        get => _loadLastSave;
-        set
-        {
-            if (value)
-            {
-                LoadSaveName = null;
-            }
-
-            _loadLastSave = value;
-        }
-    }
-
-    private string? _loadSaveName;
-    [Category("Game Launch")]
-    [Display(Name = "Load specific savegame")]
-    public string? LoadSaveName
-    {
-        get => _loadSaveName;
-        set
-        {
-            if (value is not null)
-            {
-                LoadLastSave = false;
-            }
-
-            _loadSaveName = value;
-        }
-    }
 
     [Category("Game Launch")]
     [Display(Name = "Game Commandline Arguments")]
-    public string? GameArguments { get; set; }
+    public string GameArguments { get; set; }
 
-    [property: Browsable(false)] public int? Order { get; set; }
 
-    internal LaunchProfile Copy() => (LaunchProfile)MemberwiseClone();
-
-    public void SwitchPosition(LaunchProfile otherProfile) => (Order, otherProfile.Order) = (otherProfile.Order, Order);
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected virtual void OnPropertyChanged(string? propertyName = null) =>
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    internal LaunchProfile Copy()
+    {
+        return new LaunchProfile()
+        {
+            CreateBackup = CreateBackup,
+            CleanAll = CleanAll,
+            Install = Install,
+            IsRedmod = IsRedmod,
+            DeployWithRedmod = DeployWithRedmod,
+            LaunchGame = LaunchGame,
+            GameArguments = GameArguments
+        };
+    }
 }

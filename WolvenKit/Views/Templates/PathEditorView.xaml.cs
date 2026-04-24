@@ -1,11 +1,5 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Text;
 using System.Windows;
-using Microsoft.Win32;
-using WolvenKit.App.Helpers;
+using Microsoft.WindowsAPICodePack.Dialogs;
 
 namespace WolvenKit.Controls
 {
@@ -23,10 +17,8 @@ namespace WolvenKit.Controls
     /// <summary>
     /// Interaction logic for PathEditorView.xaml
     /// </summary>
-    public partial class PathEditorView : INotifyDataErrorInfo
+    public partial class PathEditorView
     {
-        private readonly Dictionary<string, List<string>> _errorsByPropertyName = new();
-
         private readonly bool _isFolderPicker;
         private readonly bool _multiselect;
         private readonly PathEditorFilter[] _filters;
@@ -46,15 +38,31 @@ namespace WolvenKit.Controls
             set => SetValue(TextProperty, value);
         }
         public static readonly DependencyProperty TextProperty = DependencyProperty.Register(
-            nameof(Text), typeof(string), typeof(PathEditorView), new PropertyMetadata("", OnTextChanged));
+            nameof(Text), typeof(string), typeof(PathEditorView), new PropertyMetadata(""));
 
-        private static void OnTextChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        private HandyControl.Data.OperationResult<bool> VerifyFile(string str)
         {
-            var view = (PathEditorView)d;
+            if (_isFolderPicker)
+            {
+                if (System.IO.Directory.Exists(str))
+                {
+                    notification.SetCurrentValue(System.Windows.Controls.Primitives.Popup.IsOpenProperty, false);
+                    return HandyControl.Data.OperationResult.Success();
+                }
 
-            view.ValidateText();
+                return HandyControl.Data.OperationResult.Failed();
+            }
+            else
+            {
+                if (System.IO.File.Exists(str))
+                {
+                    notification.SetCurrentValue(System.Windows.Controls.Primitives.Popup.IsOpenProperty, false);
+                    return HandyControl.Data.OperationResult.Success();
+                }
+
+                return HandyControl.Data.OperationResult.Failed();
+            }
         }
-
 
         private void ButtonBase_OnClick(object sender, RoutedEventArgs e)
         {
@@ -77,52 +85,29 @@ namespace WolvenKit.Controls
                     break;
             }
 
-            string[] results;
-            if (_isFolderPicker)
+            var dlg = new CommonOpenFileDialog
             {
-                var dlg = new FolderPicker
+                AllowNonFileSystemItems = true,
+                Multiselect = _multiselect,
+                IsFolderPicker = _isFolderPicker,
+
+                Title = title
+            };
+
+            if (_filters is not null)
+            {
+                foreach (var item in _filters)
                 {
-                    Title = title,
-                    ForceFileSystem = false
-                };
-
-                if (dlg.ShowDialog() != true)
-                { 
-                    return;
+                    dlg.Filters.Add(new CommonFileDialogFilter(item.Name, item.Patterns));
                 }
-
-                results = new string[] { dlg.ResultPath };
             }
 
-            else
+            if (dlg.ShowDialog() != CommonFileDialogResult.Ok)
             {
-                var filter = "";
-                if (_filters is not null)
-                {
-                    var stringBuilder = new StringBuilder();
-
-                    foreach (var item in _filters)
-                    {
-                        stringBuilder.Append($"{item.Name}|{item.Patterns}|");
-                    }
-                    stringBuilder = stringBuilder.Remove(stringBuilder.Length - 1, 1);
-                    filter = stringBuilder.ToString();
-                }
-                var dlg = new OpenFileDialog
-                {
-                    Title = title,
-                    Multiselect = _multiselect,
-                    Filter = filter
-                };
-                
-                if (dlg.ShowDialog() != true)
-                {
-                    return;
-                }
-
-                results = dlg.FileNames;
+                return;
             }
 
+            var results = dlg.FileNames;
             if (results == null)
             {
                 return;
@@ -142,69 +127,5 @@ namespace WolvenKit.Controls
                 }
             }
         }
-
-        public void ValidateText()
-        {
-            ClearError(nameof(Text));
-
-            if (_isFolderPicker)
-            {
-                if (!System.IO.Directory.Exists(Text))
-                {
-                    AddError(nameof(Text), "Directory doesn't exists");
-                }
-            }
-            else
-            {
-                if (!System.IO.File.Exists(Text))
-                {
-                    AddError(nameof(Text), "File doesn't exists");
-                }
-            }
-        }
-
-        #region INotifyDataErrorInfo
-
-        private void AddError(string propertyName, string error)
-        {
-            if (!_errorsByPropertyName.TryGetValue(propertyName, out var errorList))
-            {
-                errorList = new List<string>();
-                _errorsByPropertyName.Add(propertyName, errorList);
-            }
-
-            if (!errorList.Contains(error))
-            {
-                errorList.Add(error);
-                ErrorsChanged?.Invoke(this, new DataErrorsChangedEventArgs(propertyName));
-            }
-        }
-
-        private void ClearError(string propertyName)
-        {
-            if (!_errorsByPropertyName.ContainsKey(propertyName))
-            {
-                return;
-            }
-
-            _errorsByPropertyName.Remove(propertyName);
-            ErrorsChanged?.Invoke(this, new DataErrorsChangedEventArgs(propertyName));
-        }
-
-        public IEnumerable GetErrors(string propertyName)
-        {
-            if (!string.IsNullOrEmpty(propertyName) && _errorsByPropertyName.TryGetValue(propertyName, out var errorList))
-            {
-                return errorList;
-            }
-
-            return new List<string>();
-        }
-
-        public bool HasErrors => _errorsByPropertyName.Count > 0;
-
-        public event EventHandler<DataErrorsChangedEventArgs> ErrorsChanged;
-
-        #endregion INotifyDataErrorInfo
     }
 }

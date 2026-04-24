@@ -12,9 +12,7 @@ using Microsoft.Msagl.Core.Routing;
 using Microsoft.Msagl.Layout.Layered;
 using Microsoft.Msagl.Layout.MDS;
 using Nodify;
-using WolvenKit.App.Models;
-using WolvenKit.App.Models.Nodify;
-using INode = WolvenKit.App.Models.Nodify.INode;
+using WolvenKit.Functionality.Interfaces;
 
 namespace WolvenKit.Views.Editors
 {
@@ -23,7 +21,7 @@ namespace WolvenKit.Views.Editors
         public AutomaticNodifyEditor() : base()
         {
             // Only use the middle mouse for Panning so that right mouse can be used for other things.
-            //EditorGestures.Mappings.Editor.Pan = new MouseGesture(MouseAction.MiddleClick);
+            EditorGestures.Pan = new MouseGesture(MouseAction.MiddleClick);
         }
 
         /// <summary>

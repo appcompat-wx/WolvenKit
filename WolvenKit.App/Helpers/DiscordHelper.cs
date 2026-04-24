@@ -1,88 +1,47 @@
 using System;
+using Splat;
 using WolvenKit.Core.Interfaces;
 
-namespace WolvenKit.App.Helpers;
-
-public static class DiscordHelper
+namespace WolvenKit.Functionality.WKitGlobal.Helpers
 {
-    private const string s_discordAppID = "897813293480169532";
-
-    private static readonly DiscordRPC.Assets s_assets = new()
+    public static class DiscordHelper
     {
-        LargeImageKey = "bigwk", LargeImageText = "WolvenKit"
-    };
+        public static DiscordRPC.DiscordRpcClient Client;
+        public static string DiscordAppID = "897813293480169532";
+        public static bool DiscordRPCEnabled = true;
+        public static bool DiscordRPCInitizialized = false;
 
-    private static bool s_isEnabled = true;
-    private static bool s_isInitialized = false;
-    private static readonly DiscordRPC.Timestamps s_timestamp = new() { Start = DateTime.UtcNow };
-
-    private static DiscordRPC.DiscordRpcClient? s_client;
-
-    public static ILoggerService? LoggerService { private get; set; }
-
-    public static void InitializeDiscordRPC()
-    {
-        if (!s_isEnabled || s_isInitialized)
+        public static void InitializeDiscordRPC()
         {
-            return;
+            if (DiscordRPCEnabled == true && DiscordRPCInitizialized == false)
+            {
+                Client = new DiscordRPC.DiscordRpcClient(DiscordAppID);
+                Client.OnReady += (sender, e) => Console.WriteLine("Received Ready from user {0}", e.User.Username);
+                Client.OnPresenceUpdate += (sender, e) => Console.WriteLine("Received Update! {0}", e.Presence);
+                Client.Initialize();
+                DiscordRPCInitizialized = true;
+            }
         }
 
-        s_isInitialized = true;
-
-        s_client = new DiscordRPC.DiscordRpcClient(s_discordAppID);
-        s_client.OnReady += (_, e) => Console.WriteLine("Received Ready from user {0}", e.User.Username);
-        s_client.OnPresenceUpdate += (_, e) => Console.WriteLine("Received Update! {0}", e.Presence);
-        s_client.Initialize();
-
-        s_isInitialized = true;
-    }
-
-    private static void SetStatusInternal(string details, string projectName)
-    {
-        DiscordRPC.RichPresence presence = new()
+        public static void SetDiscordRPCStatus(string details)
         {
-            Details = details,
-            State = string.IsNullOrEmpty(projectName) ? string.Empty : $"Project {projectName}",
-            Timestamps = s_timestamp,
-            Assets = s_assets
-        };
-
-        try
-        {
-            s_client?.SetPresence(presence);
-            s_client?.Invoke();
+            if (DiscordRPCEnabled == true)
+            {
+                try
+                {
+                    if (Client != null)
+                    {
+                        Client.SetPresence(new DiscordRPC.RichPresence()
+                        {
+                            Details = details,
+                            Timestamps = new DiscordRPC.Timestamps() { Start = DateTime.UtcNow },
+                            Assets = new DiscordRPC.Assets() { LargeImageKey = "bigwk", LargeImageText = "WolvenKit", }
+                        });
+                        Client.Invoke();
+                    }
+                }
+                catch (Exception ex) { Locator.Current.GetService<ILoggerService>().Error(ex); }
+            }
         }
-        catch (Exception ex)
-        {
-            LoggerService?.Error($"Failed to update Discord RCP presence: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// This will do nothing if DiscordRPC is disabled in settings.
-    /// </summary>
-    /// <param name="details"></param>
-    /// <param name="projectName"></param>
-    public static void SetDiscordRPCStatus(string details, string projectName)
-    {
-        if (!s_isEnabled)
-        {
-            return;
-        }
-
-        SetStatusInternal(details, projectName);
-    }
-
-    public static void SetEnabled(bool statusFromSettings)
-    {
-        if (s_isEnabled == statusFromSettings)
-        {
-            return;
-        }
-
-        s_isEnabled = statusFromSettings;
-
-        InitializeDiscordRPC();
-        SetStatusInternal(string.Empty, string.Empty);
     }
 }

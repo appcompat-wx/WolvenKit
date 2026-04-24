@@ -1,11 +1,9 @@
 ﻿using System;
 
-namespace WolvenKit.Modkit.Exceptions;
-
-[Serializable]
-public class PackException : Exception
+namespace WolvenKit.Modkit.Exceptions
 {
-    public PackException() { }
-    public PackException(string message) : base(message) { }
-    public PackException(string message, Exception inner) : base(message, inner) { }
+    public class ImportException : Exception
+    {
+
+    }
 }

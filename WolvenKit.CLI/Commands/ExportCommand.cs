@@ -4,9 +4,7 @@ using System.IO;
 using CP77Tools.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 using WolvenKit.Common;
-using WolvenKit.Common.Model.Arguments;
 using WolvenKit.Core.Interfaces;
 
 namespace CP77Tools.Commands;
@@ -26,15 +24,14 @@ internal class ExportCommand : CommandBase
         // TODO revert to DirectoryInfo once System.Commandline is updated https://github.com/dotnet/command-line-api/issues/1872
         AddOption(new Option<string>(new[] { "--outpath", "-o" }, "Output directory path for all files to export to."));
 
-        AddOption(new Option<string>(new[] { "--gamepath", "-gp" }, "Path to the Cyberpunk 2077 directory."));
-
         AddOption(new Option<EUncookExtension?>(new[] { "--uext" }, "Format to uncook textures into (tga, bmp, jpg, png, dds), DDS by default."));
+        AddOption(new Option<bool?>(new[] { "--flip", "-f" }, "Flips textures vertically."));
         AddOption(new Option<ECookedFileFormat[]>(new[] { "--forcebuffers", "-fb" }, "Force uncooking to buffers for given extension. e.g. mesh."));
 
-        SetInternalHandler(CommandHandler.Create<FileSystemInfo[], string, string, EUncookExtension?, ECookedFileFormat[], IHost>(Action));
+        SetInternalHandler(CommandHandler.Create<FileSystemInfo[], string, EUncookExtension?, bool?, ECookedFileFormat[], IHost>(Action));
     }
 
-    private int Action(FileSystemInfo[] path, string outpath, string gamepath, EUncookExtension? uext, ECookedFileFormat[] forcebuffers, IHost host)
+    private int Action(FileSystemInfo[] path, string outpath, EUncookExtension? uext, bool? flip, ECookedFileFormat[] forcebuffers, IHost host)
     {
         var serviceProvider = host.Services;
         var logger = serviceProvider.GetRequiredService<ILoggerService>();
@@ -45,20 +42,7 @@ internal class ExportCommand : CommandBase
             return ConsoleFunctions.ERROR_BAD_ARGUMENTS;
         }
 
-        var meshExportArgs = serviceProvider.GetService<IOptions<MeshExportArgs>>();
-        if (meshExportArgs?.Value is { withMaterials: true } && gamepath == null)
-        {
-            logger.Error("Exporting mesh files with materials requires \"--gamepath\" to be set");
-            return ConsoleFunctions.ERROR_BAD_ARGUMENTS;
-        }
-
         var consoleFunctions = serviceProvider.GetRequiredService<ConsoleFunctions>();
-        return consoleFunctions.ExportTask(path, new ExportTaskOptions
-        {
-            outpath = string.IsNullOrEmpty(outpath) ? null : new DirectoryInfo(outpath),
-            gamepath = gamepath,
-            uext = uext,
-            forcebuffers = forcebuffers
-        });
+        return consoleFunctions.ExportTask(path, string.IsNullOrEmpty(outpath) ? null : new DirectoryInfo(outpath), uext, flip, forcebuffers);
     }
 }

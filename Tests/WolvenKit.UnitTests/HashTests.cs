@@ -36,7 +36,7 @@ namespace WolvenKit.UnitTests
             using (mlc)
             {
                 assembly = mlc.LoadFromAssemblyPath("WolvenKit.Common.dll");
-                using var stream = assembly.GetManifestResourceStream(s_used).NotNull();
+                using var stream = assembly.GetManifestResourceStream(s_used);
 
                 // read KARK header
                 var oodleCompression = stream.ReadStruct<uint>();
@@ -53,24 +53,26 @@ namespace WolvenKit.UnitTests
                 Oodle.Decompress(inbuffer, outputbuffer);
 
 
-                using var ms = new MemoryStream(outputbuffer);
-                using var sr = new StreamReader(ms);
-                string? line;
-                while ((line = sr.ReadLine()) != null)
+                using (var ms = new MemoryStream(outputbuffer))
+                using (var sr = new StreamReader(ms))
                 {
-                    var hash = FNV1A64HashAlgorithm.HashString(line);
-
-                    if (hashDictionary.ContainsKey(hash))
+                    string? line;
+                    while ((line = sr.ReadLine()) != null)
                     {
-                        continue;
+                        var hash = FNV1A64HashAlgorithm.HashString(line);
+
+                        if (hashDictionary.ContainsKey(hash))
+                        {
+                            continue;
+                        }
+                        hashDictionary.Add(hash, line);
                     }
-                    hashDictionary.Add(hash, line);
                 }
             }
 
             var after = GC.GetTotalMemory(true);
             double diff = after - before;
-            Console.WriteLine($"Memory: {diff}");
+            Console.WriteLine($"Memory: {diff.ToString()}");
 
             // compare
             var failed = 0;
@@ -117,7 +119,7 @@ namespace WolvenKit.UnitTests
             using (mlc)
             {
                 assembly = mlc.LoadFromAssemblyPath("WolvenKit.Common.dll");
-                using var stream = assembly.GetManifestResourceStream(s_used).NotNull();
+                using var stream = assembly.GetManifestResourceStream(s_used);
 
                 // read KARK header
                 var oodleCompression = stream.ReadStruct<uint>();
@@ -134,24 +136,26 @@ namespace WolvenKit.UnitTests
                 Oodle.Decompress(inbuffer, outputbuffer);
 
 
-                using var ms = new MemoryStream(outputbuffer);
-                using var sr = new StreamReader(ms);
-                string? line;
-                while ((line = sr.ReadLine()) != null)
+                using (var ms = new MemoryStream(outputbuffer))
+                using (var sr = new StreamReader(ms))
                 {
-                    var hash = FNV1A64HashAlgorithm.HashString(line);
-
-                    if (hashDictionary.ContainsKey(hash))
+                    string? line;
+                    while ((line = sr.ReadLine()) != null)
                     {
-                        continue;
+                        var hash = FNV1A64HashAlgorithm.HashString(line);
+
+                        if (hashDictionary.ContainsKey(hash))
+                        {
+                            continue;
+                        }
+                        hashDictionary.Add(hash, new SAsciiString(line));
                     }
-                    hashDictionary.Add(hash, new SAsciiString(line));
                 }
             }
 
             var after = GC.GetTotalMemory(true);
             double diff = after - before;
-            Console.WriteLine($"Memory: {diff}");
+            Console.WriteLine($"Memory: {diff.ToString()}");
 
             // compare
             var failed = 0;
@@ -201,7 +205,7 @@ namespace WolvenKit.UnitTests
             using (mlc)
             {
                 assembly = mlc.LoadFromAssemblyPath("WolvenKit.Common.dll");
-                using var stream = assembly.GetManifestResourceStream(s_used).NotNull();
+                using var stream = assembly.GetManifestResourceStream(s_used);
 
                 // read KARK header
                 var oodleCompression = stream.ReadStruct<uint>();
@@ -218,45 +222,48 @@ namespace WolvenKit.UnitTests
                 Oodle.Decompress(inbuffer, outputbuffer);
 
 
-                using var ms = new MemoryStream(outputbuffer);
-                using var sr = new StreamReader(ms);
-
-                string? line;
-                while ((line = sr.ReadLine()) != null)
+                using (var ms = new MemoryStream(outputbuffer))
+                using (var sr = new StreamReader(ms))
                 {
-                    originals.Add(line);
 
-                    var hash = FNV1A64HashAlgorithm.HashString(line);
-                    var pathParts = line.Split('\\');
-                    hashDictionary.Add(hash, new uint[pathParts.Length]);
-
-
-                    for (var i = 0; i < pathParts.Length; i++)
+                    string? line;
+                    while ((line = sr.ReadLine()) != null)
                     {
-                        var s = pathParts[i];
-                        var a = new SAsciiString(s);
-                        uint idx;
+                        originals.Add(line);
 
-                        if (helperDict.ContainsKey(a))
-                        {
-                            idx = helperDict[a];
-                        }
-                        else
-                        {
-                            //chunks.Add(a);
-                            var count = helperDict.Count;
-                            helperDict.Add(a, (uint)count);
-                            idx = (uint)count;
-                        }
+                        var hash = FNV1A64HashAlgorithm.HashString(line);
+                        var pathParts = line.Split('\\');
+                        hashDictionary.Add(hash, new uint[pathParts.Length]);
 
-                        hashDictionary[hash][i] = idx;
+
+                        for (var i = 0; i < pathParts.Length; i++)
+                        {
+                            var s = pathParts[i];
+                            var a = new SAsciiString(s);
+                            uint idx;
+
+                            if (helperDict.ContainsKey(a))
+                            {
+                                idx = helperDict[a];
+                            }
+                            else
+                            {
+                                //chunks.Add(a);
+                                var count = helperDict.Count;
+                                helperDict.Add(a, (uint)count);
+                                idx = (uint)count;
+                            }
+
+                            hashDictionary[hash][i] = idx;
+                        }
                     }
+
                 }
             }
 
             var after = GC.GetTotalMemory(true);
             double diff = after - before;
-            Console.WriteLine($"Memory: {diff}");
+            Console.WriteLine($"Memory: {diff.ToString()}");
 
 
 

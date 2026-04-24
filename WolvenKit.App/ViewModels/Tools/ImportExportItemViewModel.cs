@@ -1,53 +1,43 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
-using CommunityToolkit.Mvvm.ComponentModel;
+using HelixToolkit.SharpDX.Core.Model;
+using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
+using Splat;
+using WolvenKit.Common;
+using WolvenKit.Common.FNV1A;
 using WolvenKit.Common.Interfaces;
 using WolvenKit.Common.Model.Arguments;
-using System.Text.RegularExpressions;
-using WolvenKit.RED4.CR2W;
+using WolvenKit.Core.Interfaces;
+using WolvenKit.Functionality.Services;
+using WolvenKit.Models;
+using WolvenKit.ProjectManagement.Project;
+using WolvenKit.RED4.Types;
 
-namespace WolvenKit.App.ViewModels.Tools;
-
-/// <summary>
-/// ImportExportItem ViewModel
-/// </summary>
-public abstract partial class ImportExportItemViewModel : ObservableObject, ISelectableViewModel
+namespace WolvenKit.ViewModels.Tools
 {
-    protected ImportExportItemViewModel(string baseFile, ImportExportArgs properties)
+    /// <summary>
+    /// ImportExportItem ViewModel
+    /// </summary>
+    public abstract class ImportExportItemViewModel : ReactiveObject, ISelectableViewModel
     {
-        BaseFile = baseFile;
-        _properties = properties;
+        /// <summary>
+        /// BaseFile "FileModel"
+        /// </summary>
+        protected string BaseFile { get; set; }
 
-        _propertiesDisplay = _properties.ToString();
+        /// <summary>
+        /// Properties
+        /// </summary>
+        [Reactive] public ImportExportArgs Properties { get; set; }
 
-        Properties.PropertyChanged += Properties_PropertyChanged;
-    }
+        public string ExportTaskIdentifier => Properties.ToString();
 
-    protected virtual void Properties_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) => PropertiesDisplay = Properties.ToString();
+        public string Extension => Path.GetExtension(BaseFile).TrimStart('.');
+        public string FullName => BaseFile;
+        public string Name => Path.GetFileName(BaseFile);
 
-    public string BaseFile { get; set; }
-
-    [ObservableProperty] private ImportExportArgs _properties;
-
-    [ObservableProperty] private bool _isChecked;
-
-    [ObservableProperty] private string? _propertiesDisplay;
-
-    public string Extension => Path.GetExtension(BaseFile).TrimStart('.');
-    public string Name => Path.GetFileName(BaseFile);
-
-    [GeneratedRegex(@"^.*source\\(archive|raw)\\")]
-    private static partial Regex ProjectSubfolderRegex();
-
-    // This is used by ExportView.xaml and TextureImportView.xaml
-    public string FullPath => ProjectSubfolderRegex().Replace(BaseFile, string.Empty);
-
-    public void SetProperties(ImportExportArgs args)
-    {
-        Properties.PropertyChanged -= Properties_PropertyChanged;
-        
-        Properties = args;
-        PropertiesDisplay = Properties.ToString();
-
-        Properties.PropertyChanged += Properties_PropertyChanged;
+        [Reactive] public bool IsChecked { get; set; }
     }
 }

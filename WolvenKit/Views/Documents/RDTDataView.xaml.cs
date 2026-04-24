@@ -1,18 +1,28 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.IO;
 using System.Reactive.Disposables;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
+using Nodify;
 using ReactiveUI;
 using Splat;
+using Syncfusion.UI.Xaml.TreeView;
 using WolvenKit.App;
-using WolvenKit.App.ViewModels.Documents;
-using WolvenKit.App.ViewModels.Events;
+using WolvenKit.Common.Conversion;
+using WolvenKit.Functionality.Interfaces;
+using WolvenKit.RED4.Types;
+using WolvenKit.ViewModels.Documents;
+using WolvenKit.ViewModels.Shell;
 using WolvenKit.Views.Editors;
 
 namespace WolvenKit.Views.Documents
 {
     /// <summary>
-    /// Tree view for RDTData
     /// Interaction logic for RDTDataView.xaml
     /// </summary>
     public partial class RDTDataView : ReactiveUserControl<RDTDataViewModel>
@@ -36,6 +46,29 @@ namespace WolvenKit.Views.Documents
 
             this.WhenActivated(disposables =>
             {
+
+                this.OneWayBind(ViewModel,
+                       viewmodel => viewmodel.Chunks,
+                       view => view.RedTreeView.ItemsSource)
+                   .DisposeWith(disposables);
+                this.Bind(ViewModel,
+                      viewmodel => viewmodel.SelectedChunk,
+                      view => view.RedTreeView.SelectedItem)
+                  .DisposeWith(disposables);
+                this.Bind(ViewModel,
+                      viewmodel => viewmodel.SelectedChunks,
+                      view => view.RedTreeView.SelectedItems)
+                  .DisposeWith(disposables);
+                this.OneWayBind(ViewModel,
+                      viewmodel => viewmodel.SelectedChunk,
+                      view => view.CustomPG.DataContext)
+                  .DisposeWith(disposables);
+                this.OneWayBind(ViewModel,
+                      viewmodel => viewmodel.SelectedChunk,
+                      view => view.CustomPG.ViewModel)
+                  .DisposeWith(disposables);
+
+
                 var globals = Locator.Current.GetService<IOptions<Globals>>();
                 if (globals.Value.ENABLE_NODE_EDITOR)
                 {
@@ -125,15 +158,5 @@ namespace WolvenKit.Views.Documents
 
 
         private void AutolayoutNodes_MenuItem(object sender, RoutedEventArgs e) => Editor.LayoutNodes();
-
-        private void RedTypeView_OnValueChanged(object sender, EventArgs e)
-        {
-            if (sender is not RedCNameEditor || e is not ValueChangedEventArgs args)
-            {
-                return;
-            }
-
-            ViewModel?.OnCNameValueChanged(args);
-        }
     }
 }

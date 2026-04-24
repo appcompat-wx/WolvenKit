@@ -31,11 +31,7 @@ namespace WolvenKit.Common.Model.Arguments
         public T Get<T>() where T : ConvertArgs
         {
             var arg = _argsList[typeof(T)];
-            if (arg is T t)
-            {
-                return t;
-            }
-            throw new ArgumentException();
+            return arg as T;
         }
     }
 

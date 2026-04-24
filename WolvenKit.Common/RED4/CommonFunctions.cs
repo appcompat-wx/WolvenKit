@@ -1,16 +1,16 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using WolvenKit.Common.DDS;
 using WolvenKit.Common.Model.Arguments;
 using WolvenKit.RED4.Archive;
+using static WolvenKit.RED4.CR2W.RedImage;
 using static WolvenKit.RED4.Types.Enums;
 
 namespace WolvenKit.RED4.CR2W;
 
 public static class CommonFunctions
 {
-    public static string? GetResourceClassesFromExtension(ERedExtension extension)
+    public static string GetResourceClassesFromExtension(ERedExtension extension)
     {
         foreach (var fileType in FileTypeHelper.FileTypes)
         {
@@ -45,8 +45,11 @@ public static class CommonFunctions
     /// <exception cref="ArgumentException"></exception>
     public static XbmImportArgs TextureSetupFromTextureGroup(GpuWrapApieTextureGroup textureGroup)
     {
-        var outSetup = new XbmImportArgs(textureGroup);
-
+        var outSetup = new XbmImportArgs
+        {
+            TextureGroup = textureGroup,
+            IsGamma = textureGroup is GpuWrapApieTextureGroup.TEXG_Generic_Color or GpuWrapApieTextureGroup.TEXG_Multilayer_Color or GpuWrapApieTextureGroup.TEXG_Generic_UI
+        };
 
         switch (textureGroup)
         {
@@ -122,7 +125,6 @@ public static class CommonFunctions
         ETextureCompression outCompression;
         int outPixelSize;
 
-#pragma warning disable IDE0010 // Add missing cases
         switch (texFormat)
         {
             case DXGI_FORMAT.DXGI_FORMAT_R32G32B32A32_FLOAT:
@@ -176,7 +178,6 @@ public static class CommonFunctions
                 outPixelSize = 4;
                 break;
         }
-#pragma warning restore IDE0010 // Add missing cases
 
         return (outRawFormat, outCompression, outPixelSize);
     }
@@ -227,52 +228,47 @@ public static class CommonFunctions
         };
     }
 
-    private static readonly char[] s_digitChars = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
-
-    /// <summary>
-    /// Tries to guess the texture's type from its name by using CDPR's naming conventions
-    /// </summary>
-    /// <param name="fileName">Name of file without extension</param>
-    /// <returns>the GpuWrapApieTextureGroup</returns>
     public static GpuWrapApieTextureGroup GetTextureGroupFromFileName(string fileName)
     {
-        //remove trailing digits - filenames like _n01.xbm
-        fileName = fileName.TrimEnd(s_digitChars);
-
-        return fileName switch
+        GpuWrapApieTextureGroup ret;
+        if (fileName.EndsWith("_n"))
         {
-            _ when fileName.EndsWith("_n") || fileName.EndsWith("nm") || fileName.Contains("normal") =>
-                GpuWrapApieTextureGroup.TEXG_Generic_Normal,
-            _ when fileName.EndsWith("_r") || fileName.EndsWith("_m") || fileName.EndsWith("rm") =>
-                GpuWrapApieTextureGroup.TEXG_Generic_Grayscale,
-            _ when fileName.EndsWith("_data") => GpuWrapApieTextureGroup.TEXG_Generic_Data,
-            _ when fileName.EndsWith("_lut") => GpuWrapApieTextureGroup.TEXG_Generic_LUT,
-            _ when fileName.Contains("_icon") => GpuWrapApieTextureGroup.TEXG_Generic_UI,
-            _ => GpuWrapApieTextureGroup.TEXG_Generic_Color
-        };
-    }
-
-    /// <summary>
-    /// Tries to guess if PremultiplyAlpha should be checked from file name
-    /// </summary>
-    /// <param name="fileName">Name of file without extension</param>
-    /// <returns>true/false for assignment to import settings</returns>
-    public static bool ShouldPremultiplyAlpha(string fileName)
-    {
-        //remove trailing digits - filenames like _n01.xbm - and convert to lower case
-        fileName = fileName.TrimEnd(s_digitChars).ToLower();
-
-        // corresponds to greyscale textures - roughness and maps
-        if (fileName.EndsWith("_r") || fileName.EndsWith("_m"))
+            ret = GpuWrapApieTextureGroup.TEXG_Generic_Normal;
+        }
+        else if (fileName.EndsWith("_rm"))
         {
-            return false;
+            ret = GpuWrapApieTextureGroup.TEXG_Generic_Color;
+        }
+        else if (fileName.EndsWith("_r"))
+        {
+            ret = GpuWrapApieTextureGroup.TEXG_Generic_Grayscale;
+        }
+        else if (fileName.EndsWith("_m"))
+        {
+            ret = GpuWrapApieTextureGroup.TEXG_Generic_Grayscale;
+        }
+        else if (fileName.EndsWith("_b"))
+        {
+            ret = GpuWrapApieTextureGroup.TEXG_Generic_Color;
+        }
+        else if (fileName.EndsWith("nm"))
+        {
+            ret = GpuWrapApieTextureGroup.TEXG_Generic_Normal;
+        }
+        else if (fileName.EndsWith("_data"))
+        {
+            ret = GpuWrapApieTextureGroup.TEXG_Generic_Data;
+        }
+        else if (fileName.EndsWith("_lut"))
+        {
+            ret = GpuWrapApieTextureGroup.TEXG_Generic_LUT;
+        }
+        else
+        {
+            ret = GpuWrapApieTextureGroup.TEXG_Generic_Color;
         }
 
-        // what else could we possibly check for?
-        var partialsToCheck = new List<string> { "decal", "icon", "icons", "overlay", "alpha" };
-
-        // check if we have a match (filename has already been toLower)
-        return partialsToCheck.Any(partial => fileName.Contains($"_{partial}") || fileName.Contains($"{partial}_"));
+        return ret;
     }
 
 }

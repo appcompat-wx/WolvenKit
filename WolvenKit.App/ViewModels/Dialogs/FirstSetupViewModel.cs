@@ -1,181 +1,177 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Reactive;
 using System.Threading.Tasks;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
+using System.Windows.Input;
 using Microsoft.Win32;
+using Microsoft.WindowsAPICodePack.Dialogs;
+using Prism.Commands;
+using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 using WolvenKit.App.Helpers;
-using WolvenKit.App.Services;
 using WolvenKit.Core.Interfaces;
+using WolvenKit.Functionality.Services;
+using WolvenKit.ViewModels.Dialogs;
 
-namespace WolvenKit.App.ViewModels.Dialogs;
-
-/// <summary>
-/// During the first time setup it tries to automatically determine the missing paths and settings.
-/// </summary>
-public partial class FirstSetupViewModel : DialogWindowViewModel, INotifyDataErrorInfo
+namespace WolvenKit.App.ViewModels.Dialogs
 {
-    private readonly Dictionary<string, List<string>> _errorsByPropertyName = new();
-
-    private readonly ISettingsManager _settingsManager;
-    private readonly ILoggerService _loggerService;
-
-    public FirstSetupViewModel(
-        ISettingsManager settingsManager,
-        ILoggerService loggerService
-    )
+    /// <summary>
+    /// During the first time setup it tries to automatically determine the missing paths and settings.
+    /// </summary>
+    public class FirstSetupViewModel : DialogWindowViewModel
     {
-        _settingsManager = settingsManager;
-        _loggerService = loggerService;
+        private readonly ISettingsManager _settingsManager;
+        private readonly ILoggerService _loggerService;
 
-        Title = "Settings";
-
-        TryToFindCP77ExecutableAutomatically();
-
-        _materialDepotPath = Path.Combine(ISettingsManager.GetAppData(), "Depot");
-        if (!Directory.Exists(_materialDepotPath))
+        public FirstSetupViewModel(
+            ISettingsManager settingsManager,
+            ILoggerService loggerService
+        )
         {
-            Directory.CreateDirectory(_materialDepotPath);
-        }
-    }
+            _settingsManager = settingsManager;
+            _loggerService = loggerService;
 
-    #region Properties
+            Title = "Settings";
 
-    public string Title { get; set; }
+            OpenCP77GamePathCommand = new DelegateCommand(ExecuteOpenCP77GamePath, CanOpenGamePath);
+            OpenDepotPathCommand = new DelegateCommand(ExecuteOpenDepotPath, CanOpenDepotPath);
 
-    //public string Author { get; set; }
-    //public string Email { get; set; }
-    //public string DonateLink { get; set; }
-    //public string Description { get; set; }
-    [ObservableProperty] private string _materialDepotPath;
+            TryToFindCP77ExecutableAutomatically();
 
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(OpenLinkCommand))]
-    private bool _allFieldsValid;
-
-    [ObservableProperty] private bool _checkForUpdates;
-
-    [ObservableProperty] private string? _cP77ExePath;
-
-    public string WikiHelpLink = "https://wiki.redmodding.org/wolvenkit/getting-started/download#first-launch-tl-dr";
-
-    #endregion Properties
-
-    #region Commands
-
-    private bool CanOpenLink() => AllFieldsValid;
-    [RelayCommand]
-    private void OpenLink(string link)
-    {
-        var ps = new ProcessStartInfo(link)
-        {
-            UseShellExecute = true,
-            Verb = "open"
-        };
-        Process.Start(ps);
-    }
-
-    [RelayCommand]
-    private void OpenCP77GamePath()
-    {
-        var dlg = new OpenFileDialog
-        {
-            Title = "Select Cyberpunk 2077 executable",
-            Multiselect = false,
-            Filter = "Cyberpunk2077.exe|*.exe"
-        };
-
-        if (dlg.ShowDialog() != true)
-        {
-            return;
+            MaterialDepotPath = Path.Combine(ISettingsManager.GetAppData(), "Depot");
+            if (!Directory.Exists(MaterialDepotPath))
+            {
+                Directory.CreateDirectory(MaterialDepotPath);
+            }
         }
 
-        var result = dlg.FileName;
-        if (string.IsNullOrEmpty(result))
-        {
-            return;
-        }
+        #region Properties
 
-        CP77ExePath = result;
-    }
+        public string Title { get; set; }
 
-    [RelayCommand]
-    private void OpenDepotPath()
-    {
-        var dlg = new FolderPicker
-        {
-            Title = "Select Material Depot folder",
-            ForceFileSystem = true
-        };
+        //public string Author { get; set; }
+        //public string Email { get; set; }
+        //public string DonateLink { get; set; }
+        //public string Description { get; set; }
+        [Reactive] public string MaterialDepotPath { get; set; }
 
-        if (dlg.ShowDialog() != true)
-        {
-            return;
-        }
+        [Reactive] public bool AllFieldsValid { get; set; }
+        private IObservable<bool> CanExecute =>
+            this.WhenAnyValue(
+                x => x.AllFieldsValid,
+                (b) => b == true
+            );
 
-        var result = dlg.ResultPath;
-        if (string.IsNullOrEmpty(result))
-        {
-            return;
-        }
 
-        MaterialDepotPath = result;
-    }
+        [Reactive] public bool CheckForUpdates { get; set; }
 
-    #endregion Commands
+        [Reactive] public string CP77ExePath { get; set; }
 
-    #region Methods
+        public string WikiHelpLink = "https://wiki.redmodding.org/wolvenkit/getting-started/setup";
 
-    private delegate void StrDelegate(string value);
-
-    private const string _steamCommonInstallLocation = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Cyberpunk 2077\\bin\\x64\\Cyberpunk2077.exe";
-    private const string _uninstallKey = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\";
-    private const string _uninstallKey2 = "SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\";
-
-    private void TryToFindCP77ExecutableAutomatically()
-    {
-        // Try Steam Default
-        if (File.Exists(_steamCommonInstallLocation))
-        {
-            CP77ExePath = _steamCommonInstallLocation;
-            return;
-        }
-
-        // Parallel Lookup through Registry Uninstall SubKeys.
-        var fileNamePath = "";
-        var subKeys = Registry.LocalMachine.OpenSubKey(_uninstallKey)?.GetSubKeyNames();
-        if (subKeys?.Length > 0)
-        {
-            Parallel.ForEach(
-                subKeys,
-                (subKeyName, state) =>
+        public readonly ReactiveCommand<string, Unit> OpenLinkCommand = ReactiveCommand.Create<string>(
+            link =>
+            {
+                var ps = new ProcessStartInfo(link)
                 {
-                    try
-                    {
-                        if (subKeyName is null)
-                        { return; }
+                    UseShellExecute = true,
+                    Verb = "open"
+                };
+                Process.Start(ps);
+            });
 
-                        fileNamePath = RegistryHelpers.GetFileNamePathFromRegistrySubKey(
-                            _uninstallKey + subKeyName,
-                            "Cyberpunk",
-                            "Cyberpunk2077.exe");
+        #endregion Properties
 
-                        if (!string.IsNullOrWhiteSpace(fileNamePath))
-                        { state.Break(); } // Stop the parallel loop.
-                    }
-                    catch (Exception ex)
-                    { _loggerService.Error(ex); }
-                });
+        #region Commands
+
+        private void ExecuteFinish()
+        {
+            _settingsManager.CP77ExecutablePath = CP77ExePath;
+            _settingsManager.MaterialRepositoryPath = MaterialDepotPath;
+            _settingsManager.Bounce();
         }
 
-        // Keep Looking
-        if (string.IsNullOrWhiteSpace(fileNamePath))
+
+        public ICommand OpenDepotPathCommand { get; private set; }
+        public ICommand OpenCP77GamePathCommand { get; private set; }
+
+
+        private bool CanOpenGamePath() => true;
+        private bool CanOpenDepotPath() => true;
+
+        private void ExecuteOpenCP77GamePath()
         {
-            subKeys = Registry.LocalMachine.OpenSubKey(_uninstallKey2)?.GetSubKeyNames();
+            var dlg = new CommonOpenFileDialog
+            {
+                AllowNonFileSystemItems = false,
+                Multiselect = false,
+                IsFolderPicker = false,
+                Title = "Select Cyberpunk 2077 executable."
+            };
+
+            dlg.Filters.Add(new CommonFileDialogFilter("Cyberpunk2077.exe", "*.exe"));
+
+            if (dlg.ShowDialog() != CommonFileDialogResult.Ok)
+            {
+                return;
+            }
+
+            var result = dlg.FileName;
+            if (string.IsNullOrEmpty(result))
+            {
+                return;
+            }
+
+            CP77ExePath = result;
+        }
+
+        private void ExecuteOpenDepotPath()
+        {
+            var dlg = new CommonOpenFileDialog
+            {
+                AllowNonFileSystemItems = false,
+                Multiselect = false,
+                IsFolderPicker = true,
+                Title = "Select Material Depot folder"
+            };
+
+            if (dlg.ShowDialog() != CommonFileDialogResult.Ok)
+            {
+                return;
+            }
+
+            var result = dlg.FileName;
+            if (string.IsNullOrEmpty(result))
+            {
+                return;
+            }
+
+            MaterialDepotPath = result;
+        }
+
+        #endregion Commands
+
+        #region Methods
+
+        private delegate void StrDelegate(string value);
+
+        private const string _steamCommonInstallLocation = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Cyberpunk 2077\\bin\\x64\\Cyberpunk2077.exe";
+        private const string _uninstallKey = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\";
+        private const string _uninstallKey2 = "SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\";
+
+        private void TryToFindCP77ExecutableAutomatically()
+        {
+            // Try Steam Default
+            if (File.Exists(_steamCommonInstallLocation))
+            {
+                CP77ExePath = _steamCommonInstallLocation;
+                return;
+            }
+
+            // Parallel Lookup through Registry Uninstall SubKeys.
+            var fileNamePath = "";
+            var subKeys = Registry.LocalMachine.OpenSubKey(_uninstallKey)?.GetSubKeyNames();
             if (subKeys?.Length > 0)
             {
                 Parallel.ForEach(
@@ -188,7 +184,7 @@ public partial class FirstSetupViewModel : DialogWindowViewModel, INotifyDataErr
                             { return; }
 
                             fileNamePath = RegistryHelpers.GetFileNamePathFromRegistrySubKey(
-                                _uninstallKey2 + subKeyName,
+                                _uninstallKey + subKeyName,
                                 "Cyberpunk",
                                 "Cyberpunk2077.exe");
 
@@ -199,94 +195,42 @@ public partial class FirstSetupViewModel : DialogWindowViewModel, INotifyDataErr
                         { _loggerService.Error(ex); }
                     });
             }
-        }
 
-        if (File.Exists(fileNamePath))
-        {
-            CP77ExePath = fileNamePath;
-        }
-    }
-
-    public void ExecuteFinish()
-    {
-        _settingsManager.CP77ExecutablePath = CP77ExePath;
-        _settingsManager.MaterialRepositoryPath = MaterialDepotPath;
-        _settingsManager.Bounce();
-    }
-
-    partial void OnCP77ExePathChanged(string? value) => ValidateCP77ExePath();
-
-    public void ValidateCP77ExePath()
-    {
-        ClearError(nameof(CP77ExePath));
-        if (File.Exists(CP77ExePath) && Path.GetFileName(CP77ExePath).Equals(Core.Constants.Red4Exe))
-        {
-            var oodle = Path.Combine(new FileInfo(CP77ExePath).Directory!.FullName, Core.Constants.Oodle);
-            if (!File.Exists(oodle))
+            // Keep Looking
+            if (string.IsNullOrWhiteSpace(fileNamePath))
             {
-                AddError(nameof(CP77ExePath), $"Oodle dll was not found within the game installation. Please make sure you have {Core.Constants.Oodle} next to your game executable.");
+                subKeys = Registry.LocalMachine.OpenSubKey(_uninstallKey2)?.GetSubKeyNames();
+                if (subKeys?.Length > 0)
+                {
+                    Parallel.ForEach(
+                        subKeys,
+                        (subKeyName, state) =>
+                        {
+                            try
+                            {
+                                if (subKeyName is null)
+                                { return; }
+
+                                fileNamePath = RegistryHelpers.GetFileNamePathFromRegistrySubKey(
+                                    _uninstallKey2 + subKeyName,
+                                    "Cyberpunk",
+                                    "Cyberpunk2077.exe");
+
+                                if (!string.IsNullOrWhiteSpace(fileNamePath))
+                                { state.Break(); } // Stop the parallel loop.
+                            }
+                            catch (Exception ex)
+                            { _loggerService.Error(ex); }
+                        });
+                }
+            }
+
+            if (File.Exists(fileNamePath))
+            {
+                CP77ExePath = fileNamePath;
             }
         }
-        else
-        {
-            AddError(nameof(CP77ExePath), "Locate game executable (.exe) for full WolvenKit functionality.");
-        }
+
+        #endregion Methods
     }
-
-    partial void OnMaterialDepotPathChanged(string value) => ValidateMaterialDepotPath();
-
-    public void ValidateMaterialDepotPath()
-    {
-        ClearError(nameof(MaterialDepotPath));
-        if (!Directory.Exists(MaterialDepotPath))
-        {
-            AddError(nameof(MaterialDepotPath), "Selected path does not exist");
-        }
-    }
-
-    #endregion Methods
-
-    #region INotifyDataErrorInfo
-
-    private void AddError(string propertyName, string error)
-    {
-        if (!_errorsByPropertyName.TryGetValue(propertyName, out var errorList))
-        {
-            errorList = new List<string>();
-            _errorsByPropertyName.Add(propertyName, errorList);
-        }
-
-        if (!errorList.Contains(error))
-        {
-            errorList.Add(error);
-            ErrorsChanged?.Invoke(this, new DataErrorsChangedEventArgs(propertyName));
-        }
-    }
-
-    private void ClearError(string propertyName)
-    {
-        if (!_errorsByPropertyName.ContainsKey(propertyName))
-        {
-            return;
-        }
-
-        _errorsByPropertyName.Remove(propertyName);
-        ErrorsChanged?.Invoke(this, new DataErrorsChangedEventArgs(propertyName));
-    }
-
-    public IEnumerable GetErrors(string? propertyName)
-    {
-        if (!string.IsNullOrEmpty(propertyName) && _errorsByPropertyName.TryGetValue(propertyName, out var errorList))
-        {
-            return errorList;
-        }
-
-        return new List<string>();
-    }
-
-    public bool HasErrors => _errorsByPropertyName.Count > 0;
-
-    public event EventHandler<DataErrorsChangedEventArgs>? ErrorsChanged;
-
-    #endregion INotifyDataErrorInfo
 }

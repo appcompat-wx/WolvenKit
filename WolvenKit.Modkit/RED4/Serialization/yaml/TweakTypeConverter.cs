@@ -3,7 +3,6 @@ using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Text.Json;
-using WolvenKit.Core.Extensions;
 using WolvenKit.RED4.TweakDB;
 using WolvenKit.RED4.Types;
 using YamlDotNet.Core;
@@ -23,7 +22,8 @@ namespace WolvenKit.Modkit.RED4.Serialization.yaml
 
         public bool Accepts(Type type) => typeof(IRedType).IsAssignableFrom(type);
 
-        public object? ReadYaml(IParser parser, Type xtype, ObjectDeserializer rootDeserializer)
+
+        public object ReadYaml(IParser parser, Type xtype)
         {
             IRedType result;
 
@@ -40,20 +40,20 @@ namespace WolvenKit.Modkit.RED4.Serialization.yaml
             if (IsArray(type))
             {
                 var innertype = type.GetGenericArguments()[0];
-                if (Activator.CreateInstance(
+                var array = (IRedArray)Activator.CreateInstance(
                     typeof(CArray<>).MakeGenericType(innertype),
                     BindingFlags.Instance | BindingFlags.Public,
                     binder: null,
                     args: null,
-                    culture: null) is not IRedArray array)
+                    culture: null);
+                if (array is null)
                 {
                     throw new InvalidDataException();
                 }
 
                 // read values
                 parser.SafeReadScalarValue(s_valueName);
-                var c = parser.Current ?? throw new InvalidDataException("Invalid YAML content.");
-                if (c.GetType() != _sequenceStartType)
+                if (parser.Current.GetType() != _sequenceStartType)
                 {
                     throw new InvalidDataException("Invalid YAML content.");
                 }
@@ -72,7 +72,7 @@ namespace WolvenKit.Modkit.RED4.Serialization.yaml
                 {
                     do
                     {
-                        var x = ReadYaml(parser, innertype, rootDeserializer);
+                        var x = ReadYaml(parser, innertype);
                         array.Add(x);
                     } while (parser.Current.GetType() != _sequenceEndType);
                 }
@@ -149,21 +149,6 @@ namespace WolvenKit.Modkit.RED4.Serialization.yaml
                             result = new CResourceAsyncReference<CResource>(parser.SafeReadScalarProperty(nameof(CResourceAsyncReference<CResource>.DepotPath)));
                             break;
                         }
-
-                        case ETweakType.CName:
-                        case ETweakType.CString:
-                        case ETweakType.TweakDBID:
-                        case ETweakType.CFloat:
-                        case ETweakType.CBool:
-                        case ETweakType.CUint8:
-                        case ETweakType.CUint16:
-                        case ETweakType.CUint32:
-                        case ETweakType.CUint64:
-                        case ETweakType.CInt8:
-                        case ETweakType.CInt16:
-                        case ETweakType.CInt32:
-                        case ETweakType.CInt64:
-                        case ETweakType.LocKey:
                         default:
                             throw new ArgumentOutOfRangeException();
                     }
@@ -177,7 +162,7 @@ namespace WolvenKit.Modkit.RED4.Serialization.yaml
             return result;
         }
 
-        public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
+        public void WriteYaml(IEmitter emitter, object value, Type type)
         {
             if (value is not IRedType itype)
             {
@@ -202,7 +187,7 @@ namespace WolvenKit.Modkit.RED4.Serialization.yaml
                 {
                     if (item is IRedType i)
                     {
-                        WriteYaml(emitter, i, i.GetType(), serializer);
+                        WriteYaml(emitter, i, i.GetType());
                     }
                     else
                     {
@@ -215,7 +200,7 @@ namespace WolvenKit.Modkit.RED4.Serialization.yaml
             {
                 if (value is IRedPrimitive fundamental)
                 {
-                    emitter.WriteProperty(s_valueName, fundamental.ToString() ?? throw new ArgumentNullException());
+                    emitter.WriteProperty(s_valueName, fundamental.ToString());
                 }
                 else
                 {
@@ -262,8 +247,7 @@ namespace WolvenKit.Modkit.RED4.Serialization.yaml
                         }
                         case CResourceAsyncReference<CResource> cres:
                         {
-                            emitter.WriteProperty(nameof(CResourceAsyncReference<CResource>.DepotPath),
-                                cres.DepotPath.GetResolvedText().NotNull());
+                            emitter.WriteProperty(nameof(CResourceAsyncReference<CResource>.DepotPath), cres.DepotPath.ToString());
                             break;
                         }
 
@@ -303,11 +287,6 @@ namespace WolvenKit.Modkit.RED4.Serialization.yaml
                     ETweakType.CInt16 => (CInt16)short.Parse(s),
                     ETweakType.CInt32 => (CInt32)int.Parse(s),
                     ETweakType.CInt64 => (CInt64)long.Parse(s),
-                    ETweakType.CColor => throw new NotImplementedException(),
-                    ETweakType.CEulerAngles => throw new NotImplementedException(),
-                    ETweakType.CQuaternion => throw new NotImplementedException(),
-                    ETweakType.CVector2 => throw new NotImplementedException(),
-                    ETweakType.CVector3 => throw new NotImplementedException(),
                     _ => throw new ArgumentOutOfRangeException()
                 };
             }

@@ -11,430 +11,441 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using WolvenKit.App.Factories;
-using WolvenKit.App.Helpers;
-using WolvenKit.App.Models;
-using WolvenKit.App.Services;
-using WolvenKit.App.ViewModels.Shell;
+using System.Windows.Threading;
+using Prism.Commands;
+using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 using WolvenKit.Common.Services;
-using WolvenKit.Core.Extensions;
 using WolvenKit.Core.Interfaces;
+using WolvenKit.Functionality.Services;
+using WolvenKit.Models;
 using WolvenKit.RED4.Types;
+using WolvenKit.ViewModels.Shell;
 using YamlDotNet.Serialization;
 
-namespace WolvenKit.App.ViewModels.Tools;
-
-public partial class TweakBrowserViewModel : ToolViewModel
+namespace WolvenKit.ViewModels.Tools
 {
-    #region fields
-
-    /// <summary>
-    /// Identifies the <see ref="ContentId"/> of this tool window.
-    /// </summary>
-    public const string ToolContentId = "TweakBrowser_Tool";
-
-    /// <summary>
-    /// Identifies the caption string used for this tool window.
-    /// </summary>
-    public const string ToolTitle = "Tweak Browser";
-
-    private readonly AppViewModel _appViewModel;
-    private readonly IChunkViewmodelFactory _chunkViewmodelFactory;
-    private readonly ISettingsManager _settingsManager;
-    private readonly INotificationService _notificationService;
-    private readonly IProjectManager _projectManager;
-    private readonly ILoggerService _loggerService;
-    private readonly ITweakDBService _tweakDB;
-    private readonly ILocKeyService _locKeyService;
-
-    public string Extension { get; set; } = "tweak";
-
-    [ObservableProperty] private bool _isLoading = true;
-
-    [ObservableProperty] private string _searchText = string.Empty;
-    [ObservableProperty] private bool _showNonResolvableEntries;
-    [ObservableProperty] private bool _showInlineEntries;
-    [ObservableProperty] private string _selectedRecordType = "";
-
-    [ObservableProperty] private TweakEntry? _selectedRecordEntry;
-    [ObservableProperty] private TweakEntry? _selectedFlatEntry;
-    [ObservableProperty] private TweakEntry? _selectedQueryEntry;
-    [ObservableProperty] private TweakEntry? _selectedGroupTagEntry;
-
-    #endregion fields
-
-    #region constructors
-
-    public TweakBrowserViewModel(
-        AppViewModel appViewModel,
-        IChunkViewmodelFactory chunkViewmodelFactory,
-        ISettingsManager settingsManager,
-        INotificationService notificationService,
-        IProjectManager projectManager,
-        ILoggerService loggerService,
-        ITweakDBService tweakDbService,
-        ILocKeyService locKeyService
-    ) : base(ToolTitle)
+    public class TweakBrowserViewModel : ToolViewModel
     {
-        _appViewModel = appViewModel;
-        _chunkViewmodelFactory = chunkViewmodelFactory;
-        _settingsManager = settingsManager;
-        _notificationService = notificationService;
-        _projectManager = projectManager;
-        _loggerService = loggerService;
-        _tweakDB = tweakDbService;
-        _locKeyService = locKeyService;
-        _tweakDB.Loaded += Load;
+        #region fields
 
-        PropertyChanged += InternalPropertyChanged;
-    }
+        /// <summary>
+        /// Identifies the <see ref="ContentId"/> of this tool window.
+        /// </summary>
+        public const string ToolContentId = "TweakBrowser_Tool";
 
-    private void InternalPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        switch (e.PropertyName)
+        /// <summary>
+        /// Identifies the caption string used for this tool window.
+        /// </summary>
+        public const string ToolTitle = "Tweak Browser";
+
+        private readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
+
+        private readonly ISettingsManager _settingsManager;
+        private readonly INotificationService _notificationService;
+        private readonly IProjectManager _projectManager;
+        private readonly ILoggerService _loggerService;
+        private readonly TweakDBService _tweakDB;
+        public string Extension { get; set; } = "tweak";
+
+
+        private string _searchText = string.Empty;
+        private bool _showNonResolvableEntries;
+        private bool _showInlineEntries;
+        private string _selectedRecordType = "";
+
+        private TweakEntry _selectedRecordEntry;
+        private TweakEntry _selectedFlatEntry;
+        private TweakEntry _selectedQueryEntry;
+        private TweakEntry _selectedGroupTagEntry;
+
+        #endregion fields
+
+        #region constructors
+
+        public TweakBrowserViewModel(
+            ISettingsManager settingsManager,
+            INotificationService notificationService,
+            IProjectManager projectManager,
+            ILoggerService loggerService,
+            TweakDBService tweakDbService
+        ) : base(ToolTitle)
         {
-            case nameof(SearchText):
-            case nameof(ShowNonResolvableEntries):
-            case nameof(ShowInlineEntries):
-            case nameof(SelectedRecordType):
+            _settingsManager = settingsManager;
+            _notificationService = notificationService;
+            _projectManager = projectManager;
+            _loggerService = loggerService;
+            _tweakDB = tweakDbService;
+
+            _tweakDB.Loaded += Load;
+        }
+
+        #endregion constructors
+
+        #region Properties
+
+        [Reactive] public Visibility LoadVisibility { get; set; } = Visibility.Visible;
+
+        [Reactive] public ICollectionView Records { get; set; } = new CollectionView(new List<object>());
+        [Reactive] public ICollectionView Flats { get; set; } = new CollectionView(new List<object>());
+        [Reactive] public ICollectionView Queries { get; set; } = new CollectionView(new List<object>());
+        [Reactive] public ICollectionView GroupTags { get; set; } = new CollectionView(new List<object>());
+
+        [Reactive] public List<string> RecordTypes { get; set; }
+
+        public string RecordsHeader => $"Records ({Records.Cast<object>().Count()})";
+        public string FlatsHeader => $"Flats ({Flats.Cast<object>().Count()})";
+        public string QueriesHeader => $"Queries ({Queries.Cast<object>().Count()})";
+        public string GroupTagsHeader => $"GroupTags ({GroupTags.Cast<object>().Count()})";
+
+        public ObservableCollection<ChunkViewModel> SelectedRecord { get; set; } = new();
+        [Reactive] public ChunkViewModel SelectedFlat { get; set; }
+        [Reactive] public ChunkViewModel SelectedQuery { get; set; }
+        [Reactive] public ChunkViewModel SelectedGroupTag { get; set; }
+
+        public string SearchText
+        {
+            get => _searchText;
+            set
+            {
+                _searchText = value;
+                this.RaisePropertyChanged(nameof(SearchText));
+
                 Refresh();
-                break;
-
-            case nameof(SelectedRecordEntry):
-            {
-                SelectedRecord.Clear();
-                if (SelectedRecordEntry != null && _tweakDB.IsLoaded)
-                {
-                    var vm = _chunkViewmodelFactory.ChunkViewModel(
-                        TweakDBService.GetRecord(SelectedRecordEntry.Item).NotNull(), SelectedRecordEntry.DisplayName, _appViewModel,
-                        null, true);
-                    vm.IsExpanded = true;
-                    SelectedRecord.Add(vm);
-                }
-                OnPropertyChanged(nameof(SelectedRecord));
-                break;
             }
+        }
 
-            case nameof(SelectedFlatEntry):
+        public bool ShowNonResolvableEntries
+        {
+            get => _showNonResolvableEntries;
+            set
             {
-                SelectedFlat.Clear();
-                if (SelectedFlatEntry != null && _tweakDB.IsLoaded)
-                {
-                    var flat = TweakDBService.GetFlat(SelectedFlatEntry.Item);
-                    ArgumentNullException.ThrowIfNull(flat);
+                _showNonResolvableEntries = value;
+                this.RaisePropertyChanged(nameof(ShowNonResolvableEntries));
 
-                    var vm = _chunkViewmodelFactory.ChunkViewModel(flat, flat.GetType().Name, _appViewModel, null, true);
-                    vm.IsExpanded = true;
-
-                    SelectedFlat.Add(vm);
-                }
-                OnPropertyChanged(nameof(SelectedFlat));
-                break;
+                Refresh();
             }
+        }
 
-            case nameof(SelectedQueryEntry):
+        public bool ShowInlineEntries
+        {
+            get => _showInlineEntries;
+            set
             {
-                SelectedQuery.Clear();
-                if (SelectedQueryEntry != null && _tweakDB.IsLoaded)
+                _showInlineEntries = value;
+                this.RaisePropertyChanged(nameof(ShowInlineEntries));
+
+                Refresh();
+            }
+        }
+
+        public string SelectedRecordType
+        {
+            get => _selectedRecordType;
+            set
+            {
+                _selectedRecordType = value;
+                this.RaisePropertyChanged(nameof(SelectedRecordType));
+
+                Refresh();
+            }
+        }
+
+        public TweakEntry SelectedRecordEntry
+        {
+            get => _selectedRecordEntry;
+            set
+            {
+                _selectedRecordEntry = value;
+                this.RaisePropertyChanged(nameof(SelectedRecordEntry));
+                if (_selectedRecordEntry != null && _tweakDB.IsLoaded)
+                {
+                    SelectedRecord.Clear();
+                    SelectedRecord.Add(new ChunkViewModel(_tweakDB.GetRecord(_selectedRecordEntry.Item), null, _selectedRecordEntry.DisplayName, false, true) { IsExpanded = true });
+                }
+                else
+                {
+                    SelectedRecord.Clear();
+                }
+                this.RaisePropertyChanged(nameof(SelectedRecord));
+            }
+        }
+
+        public TweakEntry SelectedFlatEntry
+        {
+            get => _selectedFlatEntry;
+            set
+            {
+                _selectedFlatEntry = value;
+                this.RaisePropertyChanged(nameof(SelectedFlatEntry));
+                if (_selectedFlatEntry != null && _tweakDB.IsLoaded)
+                {
+                    SelectedFlat = new ChunkViewModel(_tweakDB.GetFlat(_selectedFlatEntry.Item), null, true);
+                }
+                else
+                {
+                    SelectedFlat = null;
+                }
+                this.RaisePropertyChanged(nameof(SelectedFlat));
+            }
+        }
+
+        public TweakEntry SelectedQueryEntry
+        {
+            get => _selectedQueryEntry;
+            set
+            {
+                _selectedQueryEntry = value;
+                this.RaisePropertyChanged(nameof(SelectedQueryEntry));
+                if (_selectedQueryEntry != null && _tweakDB.IsLoaded)
                 {
                     var arr = new CArray<TweakDBID>();
-                    foreach (var query in TweakDBService.GetQuery(SelectedQueryEntry.Item).NotNull())
+                    foreach (var query in _tweakDB.GetQuery(_selectedQueryEntry.Item))
                     {
                         arr.Add(query);
                     }
 
-                    var vm = _chunkViewmodelFactory.ChunkViewModel(arr, nameof(CArray<TweakDBID>), _appViewModel, null, true);
-                    vm.IsExpanded = true;
-
-                    SelectedQuery.Add(vm);
+                    SelectedQuery = new ChunkViewModel(arr, null, true);
                 }
-                OnPropertyChanged(nameof(SelectedQuery));
-                break;
-            }
-
-            case nameof(SelectedGroupTagEntry):
-            {
-                if (SelectedGroupTagEntry != null && _tweakDB.IsLoaded)
+                else
                 {
-                    var u = TweakDBService.GetGroupTagAsFlag(SelectedGroupTagEntry.Item);
+                    SelectedQuery = null;
+                }
+                this.RaisePropertyChanged(nameof(SelectedQuery));
+            }
+        }
 
-                    SelectedGroupTag =
-                        _chunkViewmodelFactory.ChunkViewModel((CBitField<InternalEnums.EGroupTag>)u, "Tags", _appViewModel, null, true);
+        public TweakEntry SelectedGroupTagEntry
+        {
+            get => _selectedGroupTagEntry;
+            set
+            {
+                _selectedGroupTagEntry = value;
+                this.RaisePropertyChanged(nameof(SelectedGroupTagEntry));
+                if (_selectedGroupTagEntry != null && _tweakDB.IsLoaded)
+                {
+                    SelectedGroupTag = new ChunkViewModel((CUInt8)_tweakDB.GetGroupTag(_selectedGroupTagEntry.Item), null, true);
                 }
                 else
                 {
                     SelectedGroupTag = null;
                 }
-                OnPropertyChanged(nameof(SelectedGroupTag));
-                break;
+                this.RaisePropertyChanged(nameof(SelectedGroupTag));
             }
-
-            default:
-                break;
-        }
-    }
-
-    #endregion constructors
-
-    #region Properties
-
-    [ObservableProperty] private ICollectionView _records = new CollectionView(new List<object>());
-    [ObservableProperty] private ICollectionView _flats = new CollectionView(new List<object>());
-    [ObservableProperty] private ICollectionView _queries = new CollectionView(new List<object>());
-    [ObservableProperty] private ICollectionView _groupTags = new CollectionView(new List<object>());
-
-    [ObservableProperty] private List<string> _recordTypes = new();
-
-    public string RecordsHeader => $"Records ({Records.Cast<object>().Count()})";
-    public string FlatsHeader => $"Flats ({Flats.Cast<object>().Count()})";
-    public string QueriesHeader => $"Queries ({Queries.Cast<object>().Count()})";
-    public string GroupTagsHeader => $"GroupTags ({GroupTags.Cast<object>().Count()})";
-
-    public ObservableCollection<ChunkViewModel> SelectedRecord { get; set; } = new();
-    public ObservableCollection<ChunkViewModel> SelectedFlat { get; set; } = new();
-    public ObservableCollection<ChunkViewModel> SelectedQuery { get; set; } = new();
-    [ObservableProperty] private ChunkViewModel? _selectedGroupTag;
-
-    #endregion
-
-    #region Methods
-
-    public void LoadTweakDB()
-    {
-        if (_tweakDB.IsLoaded)
-        {
-            return;
         }
 
-        var dbPath = Path.Combine(_settingsManager.GetRED4GameRootDir(), "r6", "cache", "tweakdb_ep1.bin");
-        if (!File.Exists(dbPath))
+        #endregion
+
+        #region Methods
+
+        public void LoadTweakDB()
         {
-            dbPath = Path.Combine(_settingsManager.GetRED4GameRootDir(), "r6", "cache", "tweakdb.bin");
-        }
-
-        _tweakDB.LoadDB(dbPath);
-    }
-
-    private void Load(object? sender, EventArgs eventArgs)
-    {
-        var records = PrepareList(TweakDBService.GetRecords(), true);
-        var flats = PrepareList(TweakDBService.GetFlats());
-        var queries = PrepareList(TweakDBService.GetQueries());
-        var groupTags = PrepareList(TweakDBService.GetGroupTags());
-
-        var classes = new List<string> { "" };
-        foreach (var record in records)
-        {
-            if (!classes.Contains(record.RecordTypeName.NotNull()))
+            if (_tweakDB.IsLoaded)
             {
-                classes.Add(record.RecordTypeName);
+                return;
+            }
+
+            _tweakDB.LoadDB(Path.Combine(_settingsManager.GetRED4GameRootDir(), "r6", "cache", "tweakdb.bin"));
+        }
+
+        private void Load(object sender, EventArgs eventArgs)
+        {
+            var records = PrepareList(_tweakDB.GetRecords(), true);
+            var flats = PrepareList(_tweakDB.GetFlats());
+            var queries = PrepareList(_tweakDB.GetQueries());
+            var groupTags = PrepareList(_tweakDB.GetGroupTags());
+
+            var classes = new List<string> { "" };
+            foreach (var record in records)
+            {
+                if (!classes.Contains(record.RecordTypeName))
+                {
+                    classes.Add(record.RecordTypeName);
+                }
+            }
+            classes.Sort();
+
+            _dispatcher.Invoke(() =>
+            {
+                RecordTypes = classes;
+
+                Records = CollectionViewSource.GetDefaultView(records);
+                Records.Filter = Filter;
+
+                Flats = CollectionViewSource.GetDefaultView(flats);
+                Flats.Filter = Filter;
+
+                Queries = CollectionViewSource.GetDefaultView(queries);
+                Queries.Filter = Filter;
+
+                GroupTags = CollectionViewSource.GetDefaultView(groupTags);
+                GroupTags.Filter = Filter;
+
+                Refresh();
+
+                LoadVisibility = Visibility.Collapsed;
+                _notificationService.Success($"Tweak Browser is initialized");
+            });
+
+            List<TweakEntry> PrepareList(List<TweakDBID> tweaks, bool isRecord = false)
+            {
+                var tmpRecords = new ConcurrentQueue<TweakEntry>();
+                Parallel.ForEach(tweaks, record =>
+                {
+                    tmpRecords.Enqueue(new TweakEntry(record, _tweakDB, isRecord));
+                });
+                return tmpRecords.AsParallel().OrderBy(x => x.DisplayName).ToList();
             }
         }
-        classes.Sort();
 
-        DispatcherHelper.RunOnMainThread(() =>
+        private void Refresh()
         {
-            RecordTypes = classes;
+            Records.Refresh();
+            this.RaisePropertyChanged(nameof(Records));
+            this.RaisePropertyChanged(nameof(RecordsHeader));
 
-            Records = CollectionViewSource.GetDefaultView(records);
-            Records.Filter = Filter;
+            Flats.Refresh();
+            this.RaisePropertyChanged(nameof(FlatsHeader));
 
-            Flats = CollectionViewSource.GetDefaultView(flats);
-            Flats.Filter = Filter;
+            Queries.Refresh();
+            this.RaisePropertyChanged(nameof(QueriesHeader));
 
-            Queries = CollectionViewSource.GetDefaultView(queries);
-            Queries.Filter = Filter;
-
-            GroupTags = CollectionViewSource.GetDefaultView(groupTags);
-            GroupTags.Filter = Filter;
-
-            Refresh();
-
-            IsLoading = false;
-            _notificationService.Success($"Tweak Browser is initialized");
-        });
-
-        List<TweakEntry> PrepareList(List<TweakDBID> tweaks, bool isRecord = false)
-        {
-            var tmpRecords = new ConcurrentQueue<TweakEntry>();
-            Parallel.ForEach(tweaks, record => tmpRecords.Enqueue(new TweakEntry(record, isRecord)));
-            return tmpRecords.AsParallel().OrderBy(x => x.DisplayName).ToList();
+            GroupTags.Refresh();
+            this.RaisePropertyChanged(nameof(GroupTagsHeader));
         }
-    }
 
-    private void Refresh()
-    {
-        SelectedRecordEntry = null;
-
-        Records.Refresh();
-        OnPropertyChanged(nameof(Records));
-        OnPropertyChanged(nameof(RecordsHeader));
-
-        Flats.Refresh();
-        OnPropertyChanged(nameof(FlatsHeader));
-
-        Queries.Refresh();
-        OnPropertyChanged(nameof(QueriesHeader));
-
-        GroupTags.Refresh();
-        OnPropertyChanged(nameof(GroupTagsHeader));
-
-        if (Records.OfType<TweakEntry>().Count() == 1)
+        private bool Filter(object obj)
         {
-            SelectedRecordEntry = Records.OfType<TweakEntry>().First();
-        }
-    }
+            var entry = (TweakEntry)obj;
 
-    private bool Filter(object obj)
-    {
-        var entry = (TweakEntry)obj;
+            if (!ShowNonResolvableEntries && !entry.IsResolved)
+            {
+                return false;
+            }
 
-        if (!ShowNonResolvableEntries && !entry.IsResolved)
-        {
+            if (!ShowInlineEntries && entry.IsInlineRecord)
+            {
+                return false;
+            }
+
+            if (SelectedRecordType != "" && entry.RecordTypeName != SelectedRecordType)
+            {
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(SearchText))
+            {
+                return true;
+            }
+
+            if (ulong.TryParse(SearchText, out var u1) && entry.Item == u1)
+            {
+                return true;
+            }
+
+            if (ulong.TryParse(SearchText, NumberStyles.HexNumber, CultureInfo.CurrentCulture, out var u2) && entry.Item == u2)
+            {
+                return true;
+            }
+
+            if (entry.IsResolved && entry.DisplayName.Contains(SearchText, StringComparison.InvariantCultureIgnoreCase))
+            {
+                return true;
+            }
+
             return false;
         }
 
-        if (!ShowInlineEntries && entry.IsInlineRecord)
+        private DelegateCommand convertToYAML;
+        public ICommand ConvertToYAML => convertToYAML ??= new DelegateCommand(ExecuteConvertToYAML, CanExecuteConvertToYAML);
+        public bool CanExecuteConvertToYAML() => true; //Locator.Current.GetService<IProjectManager>().IsProjectLoaded;
+
+        private void ExecuteConvertToYAML()
         {
-            return false;
-        }
-
-        if (SelectedRecordType != "" && entry.RecordTypeName != SelectedRecordType)
-        {
-            return false;
-        }
-
-        if (string.IsNullOrEmpty(SearchText))
-        {
-            return true;
-        }
-
-        if (ulong.TryParse(SearchText, out var u1) && entry.Item == u1)
-        {
-            return true;
-        }
-
-        if (ulong.TryParse(SearchText, NumberStyles.HexNumber, CultureInfo.CurrentCulture, out var u2) && entry.Item == u2)
-        {
-            return true;
-        }
-
-        if (entry.IsResolved && entry.DisplayName.Contains(SearchText, StringComparison.InvariantCultureIgnoreCase))
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    private RelayCommand? convertToYAML;
-    public ICommand ConvertToYAML => convertToYAML ??= new RelayCommand(ExecuteConvertToYAML, () => true);
-
-    private void ExecuteConvertToYAML()
-    {
-        if (SelectedRecordEntry is null)
-        {
-            return;
-        }
-        if (_projectManager.ActiveProject is null)
-        {
-            return;
-        }
-
-        var txl = new TweakXL
-        {
-            ID = SelectedRecordEntry.DisplayName
-        };
-
-        var baseRecord = TweakDBService.GetRecord(SelectedRecordEntry.Item).NotNull();
-        txl.Type = "gamedata" + SelectedRecordEntry.RecordTypeName + "_Record";
-
-        txl.ID = SelectedRecordEntry.Item;
-
-        baseRecord.GetPropertyNames().ForEach(name => txl.Properties.Add(name, baseRecord.GetProperty(name).NotNull()));
-
-        var txlFile = new TweakXLFile { txl };
-        var tweakDirectory =
-            _projectManager.ActiveProject.GetResourceTweakDirectory(_settingsManager.UseAuthorNameAsSubfolder, true);
-
-        var path = Path.Combine(
-            tweakDirectory,
-            $"{SelectedRecordEntry.DisplayName}.yaml");
-
-        var serializer = new SerializerBuilder()
-                 .WithTypeConverter(new TweakXLYamlTypeConverter(_locKeyService, _tweakDB))
-                 .WithIndentedSequences()
-                 .Build();
-
-        try
-        {
-            var yaml = serializer.Serialize(txlFile);
-            File.WriteAllText(path, yaml);
-
-            _loggerService.Success($"{SelectedRecordEntry.DisplayName} TweakXL written to: {path}");
-        }
-        catch (Exception ex)
-        {
-            _loggerService.Error($"Failed to create TweakXL yaml. Error: {ex}");
-            throw;
-        }
-
-    }
-
-    private RelayCommand? _copyName;
-    public ICommand CopyName => _copyName ??= new RelayCommand(ExecuteCopyName, () => true);
-
-    private void ExecuteCopyName()
-    {
-        if (SelectedRecordEntry?.DisplayName is string s && s != "")
-        {
-            Clipboard.SetDataObject(s);
-        }
-    }
-
-    #endregion
-
-
-    public class TweakEntry
-    {
-        private static readonly Regex s_inlineRegex = new("_inline[0-9]+");
-
-        public TweakDBID Item { get; }
-
-        public uint CRC32 => (uint)(Item & 0xFFFFFFFF);
-        public uint Length => (uint)(Item >> 32);
-
-        public string DisplayName { get; }
-        public bool IsResolved { get; }
-
-        public bool IsInlineRecord { get; }
-        public string? RecordTypeName { get; }
-
-        public TweakEntry(TweakDBID item, bool isRecord = false)
-        {
-            Item = item;
-
-            DisplayName = $"<TDBID:{CRC32:X8}:{Length:X2}>";
-            if (Item.ResolvedText != null)
+            var txl = new TweakXL
             {
-                DisplayName = Item.ResolvedText;
-                IsResolved = true;
+                ID = SelectedRecordEntry.DisplayName
+            };
+
+            var baseRecord = _tweakDB.GetRecord(_selectedRecordEntry.Item);
+            txl.Type = "gamedata" + _selectedRecordEntry.RecordTypeName + "_Record";
+
+            txl.ID = _selectedRecordEntry.Item;
+
+            baseRecord.GetPropertyNames().ForEach(name => txl.Properties.Add(name, baseRecord.GetProperty(name)));
+
+            var txlFile = new TweakXLFile { txl };
+
+            Stream myStream;
+            var saveFileDialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "YAML files (*.yaml; *.yml)|*.yaml;*.yml|All files (*.*)|*.*",
+                FilterIndex = 1,
+                FileName = $"{SelectedRecordEntry.DisplayName}.yaml",
+                InitialDirectory = _projectManager.ActiveProject?.ResourcesDirectory
+            };
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                if ((myStream = saveFileDialog.OpenFile()) is not null)
+                {
+                    var serializer = new SerializerBuilder()
+                        .WithTypeConverter(new TweakXLYamlTypeConverter())
+                        .WithIndentedSequences()
+                        .Build();
+
+                    var yaml = serializer.Serialize(txlFile);
+                    myStream.Write(yaml.ToCharArray().Select(c => (byte)c).ToArray());
+                    myStream.Close();
+
+                    _loggerService.Success($"{SelectedRecordEntry.DisplayName} TweakXL written to: {saveFileDialog.FileName}");
+                }
+                else
+                {
+                    _loggerService.Error($"Could not open file: {saveFileDialog.FileName}");
+                }
             }
+        }
 
-            if (isRecord)
+        #endregion
+
+
+        public class TweakEntry
+        {
+            private static readonly Regex s_inlineRegex = new("_inline[0-9]+");
+
+            public TweakDBID Item { get; }
+
+            public uint CRC32 => (uint)(Item & 0xFFFFFFFF);
+            public uint Length => (uint)(Item >> 32);
+
+            public string DisplayName { get; }
+            public bool IsResolved { get; }
+
+            public bool IsInlineRecord { get; }
+            public string RecordTypeName { get; }
+
+            public TweakEntry(TweakDBID item, TweakDBService tweakDbService, bool isRecord = false)
             {
+                Item = item;
+
+                DisplayName = $"<TDBID:{CRC32:X8}:{Length:X2}>";
                 if (Item.ResolvedText != null)
                 {
-                    IsInlineRecord = s_inlineRegex.IsMatch(Item.ResolvedText);
+                    DisplayName = Item.ResolvedText;
+                    IsResolved = true;
                 }
 
-                if (TweakDBService.TryGetType(Item, out var type))
+                if (isRecord)
                 {
+                    if (Item.ResolvedText != null)
+                    {
+                        IsInlineRecord = s_inlineRegex.IsMatch(Item.ResolvedText);
+                    }
+
+                    var type = tweakDbService.GetType(Item);
                     RecordTypeName = type.Name[8..^7];
                 }
-
             }
         }
     }

@@ -1,110 +1,91 @@
-using System.Collections.Generic;
-using System.ComponentModel;
+using System;
+using System.Reactive;
+using System.Reactive.Linq;
 using System.Threading.Tasks;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using WolvenKit.App.Controllers;
-using WolvenKit.App.Extensions;
-using WolvenKit.App.Models;
-using WolvenKit.App.Services;
+using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 using WolvenKit.Core.Interfaces;
-using WolvenKit.Core.Services;
+using WolvenKit.Functionality.Commands;
+using WolvenKit.Functionality.Controllers;
+using WolvenKit.Functionality.Services;
+using WolvenKit.Interaction;
 
-namespace WolvenKit.App.ViewModels.Shell;
-
-public partial class RibbonViewModel : ObservableObject
+namespace WolvenKit.ViewModels.Shell
 {
-    private readonly ISettingsManager _settingsManager;
-    private readonly ILoggerService _loggerService;
-    private readonly IGameControllerFactory _gameControllerFactory;
-
-    public RibbonViewModel(
-        ISettingsManager settingsManager,
-        ILoggerService loggerService,
-        IGameControllerFactory gameControllerFactory,
-        AppViewModel appViewModel
-    )
+    public class RibbonViewModel : ReactiveObject
     {
-        _settingsManager = settingsManager;
-        _loggerService = loggerService;
-        _gameControllerFactory = gameControllerFactory;
+        private readonly IWatcherService _watcherService;
+        private readonly ISettingsManager _settingsManager;
+        private readonly ILoggerService _loggerService;
+        private readonly IGameControllerFactory _gameControllerFactory;
 
-        MainViewModel = appViewModel;
-        MainViewModel.PropertyChanged += MainViewModel_OnPropertyChanged;
-
-        ShowRedmodInRibbon = settingsManager.ShowRedmodInRibbon;
-
-        _settingsManager.PropertyChanged += SettingsManager_PropertyChanged;
-
-        if (!string.IsNullOrEmpty(_settingsManager.LastLaunchProfile))
+        public RibbonViewModel(
+            IWatcherService watcherService,
+            ISettingsManager settingsManager,
+            ILoggerService loggerService,
+            IGameControllerFactory gameControllerFactory,
+            AppViewModel appViewModel
+        )
         {
-            _launchProfileText = _settingsManager.LastLaunchProfile;
+            _settingsManager = settingsManager;
+            _loggerService = loggerService;
+            _gameControllerFactory = gameControllerFactory;
+            _watcherService = watcherService;
+
+            MainViewModel = appViewModel;
+
+            LaunchProfileText = "Launch Profiles";
+
+            NewFileCommand = ReactiveCommand.Create(() => MainViewModel.NewFileCommand.SafeExecute(null));
+            SaveFileCommand = ReactiveCommand.Create(() => MainViewModel.SaveFileCommand.SafeExecute());
+            SaveAsCommand = ReactiveCommand.Create(() => MainViewModel.SaveAsCommand.SafeExecute());
+            SaveAllCommand = ReactiveCommand.Create(() => MainViewModel.SaveAllCommand.SafeExecute());
+
+            LaunchProfileCommand = ReactiveCommand.CreateFromTask(LaunchProfileAsync);
+
+            /*this.WhenAnyValue(x => x.MainViewModel.ActiveProject).WhereNotNull().Subscribe(p =>
+            {
+                if (p is not null)
+                {
+                    LaunchProfileText = p.Name;
+                }
+            });*/
+
         }
+
+
+
+        public AppViewModel MainViewModel { get; }
+
+
+        public ReactiveCommand<Unit, Unit> NewFileCommand { get; }
+        public ReactiveCommand<Unit, Unit> SaveFileCommand { get; }
+        public ReactiveCommand<Unit, Unit> SaveAsCommand { get; }
+        public ReactiveCommand<Unit, Unit> SaveAllCommand { get; }
+
+
+
+
+
+        public ReactiveCommand<Unit, Unit> LaunchProfileCommand { get; }
+        private async Task LaunchProfileAsync()
+        {
+            if (_settingsManager.LaunchProfiles.TryGetValue(LaunchProfileText, out var launchProfile))
+            {
+                _watcherService.IsSuspended = true;
+                await _gameControllerFactory.GetController().LaunchProject(launchProfile);
+                _watcherService.IsSuspended = false;
+                await _watcherService.RefreshAsync(MainViewModel.ActiveProject);
+            }
+            else
+            {
+                _loggerService.Error($"No launchprofile with name \"{LaunchProfileText}\" found.");
+            }
+        }
+
+
+
+        [Reactive] public string LaunchProfileText { get; set; }
+
     }
-
-    private void SettingsManager_PropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName != nameof(ISettingsManager.ShowRedmodInRibbon))
-        {
-            return;
-        }
-
-        ShowRedmodInRibbon = _settingsManager.ShowRedmodInRibbon;
-    }
-
-    private void MainViewModel_OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        switch (e.PropertyName)
-        {
-            case nameof(MainViewModel.TaskStatus):
-                LaunchProfileCommand.NotifyCanExecuteChanged();
-                break;
-            default:
-                break;
-        }
-    }
-
-
-    public AppViewModel MainViewModel { get; }
-
-
-    [RelayCommand]
-    private void NewFile() => MainViewModel.NewFileCommand.SafeExecute(null);
-
-    [RelayCommand]
-    private void SaveFile() => MainViewModel.SaveFileCommand.SafeExecute();
-
-    [RelayCommand]
-    private void SaveAs() => MainViewModel.SaveAsCommand.SafeExecute();
-
-    [RelayCommand]
-    private void SaveAll() => MainViewModel.SaveAllCommand.SafeExecute();
-
-    private bool CanStartTask() => MainViewModel.TaskStatus == EStatus.Ready;
-
-    [RelayCommand(CanExecute = nameof(CanStartTask))]
-    private async Task LaunchProfileAsync()
-    {
-        if (!await MainViewModel.AreDirtyFilesHandledBeforeLaunch())
-        {
-            return;
-        }
-
-        _settingsManager.LaunchProfiles ??= new Dictionary<string, LaunchProfile>();
-
-        if (LaunchProfileText is not null && _settingsManager.LaunchProfiles.TryGetValue(LaunchProfileText, out var launchProfile))
-        {
-            await _gameControllerFactory.GetController().LaunchProjectAsync(launchProfile);
-            _settingsManager.LastLaunchProfile = LaunchProfileText;
-        }
-        else
-        {
-            _loggerService.Error($"No launchprofile with name \"{LaunchProfileText}\" found.");
-        }
-    }
-
-
-    [ObservableProperty] private string? _launchProfileText;
-    [ObservableProperty] private bool _showRedmodInRibbon;
-
 }

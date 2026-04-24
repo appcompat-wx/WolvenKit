@@ -1,9 +1,10 @@
 
 
-using CommunityToolkit.Mvvm.ComponentModel;
+using ReactiveUI;
 
-namespace WolvenKit.App.ViewModels.Dialogs;
-
-public class StringsGUIImporterIDDialogViewModel : ObservableObject
+namespace WolvenKit.ViewModels.Dialogs
 {
+    public class StringsGUIImporterIDDialogViewModel : ReactiveObject
+    {
+    }
 }

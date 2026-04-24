@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using WolvenKit.App.Services;
 using WolvenKit.RED4.Types;
 
 namespace WolvenKit.Views.Editors
@@ -20,7 +20,7 @@ namespace WolvenKit.Views.Editors
         {
             InitializeComponent();
             comboboxadv.SelectionChanged += CollectionChanged;
-
+            
             for (var i = 0; i < 64; i++)
             {
                 BindingCollection.Add(i.ToString());
@@ -30,13 +30,8 @@ namespace WolvenKit.Views.Editors
         public IRedPrimitive<ulong> RedNumber
         {
             get => (IRedPrimitive<ulong>)GetValue(RedNumberProperty);
-            set
-            {
-                SetValue(RedNumberProperty, value);
-                // OnPropertyChanged("RedNumber");
-            }
+            set => SetValue(RedNumberProperty, value);
         }
-
         public static readonly DependencyProperty RedNumberProperty = DependencyProperty.Register(
             nameof(RedNumber), typeof(IRedPrimitive<ulong>), typeof(RedChunkMaskEditor), new PropertyMetadata(default(IRedPrimitive<ulong>)));
 
@@ -68,57 +63,23 @@ namespace WolvenKit.Views.Editors
 
         public void CollectionChanged(object sender, SelectionChangedEventArgs e) => SetRedValueFromSelect(comboboxadv.SelectedItems.Cast<string>());
 
-        private void SetRedValueFromSelect(IEnumerable<string> value)
+        private void SetRedValueFromSelect(IEnumerable<string> value) => SetRedValueFromSelect(string.Join(", ", value.OrderBy(s => ulong.Parse(s))));
+
+        private void SetRedValueFromSelect(string value)
         {
-            if (comboboxadv?.IsDropDownOpen != true)
+            ulong i = 0;
+
+            if (!string.IsNullOrEmpty(value))
             {
-                return;
-            }
-
-            var valueString = string.Join(", ", value.OrderBy(ulong.Parse));
-            var numericValue = TextToNumber(valueString);
-            var currentValue = (ulong)(CUInt64)RedNumber;
-
-
-            if (ModifierViewStateService.IsShiftBeingHeld)
-            {
-                if (numericValue > currentValue || currentValue == 0)
+                foreach (var item in value.Split(", "))
                 {
-                    // a box was checked
-                    SetCurrentValue(RedNumberProperty, (CUInt64)ulong.MaxValue);
-                    OnPropertyChanged("SelectedItems");
-                }
-                else
-                {
-                    // a box was unchecked
-                    SetCurrentValue(RedNumberProperty, (CUInt64)0);
-                    OnPropertyChanged("SelectedItems");
+                    i |= 1UL << int.Parse(item);
                 }
             }
-            else
-            {
-                SetCurrentValue(RedNumberProperty, (CUInt64)numericValue);
-            }
 
+            SetCurrentValue(RedNumberProperty, (CUInt64)i);
             OnPropertyChanged("Text");
         }
-
-        private ulong TextToNumber(string value = "")
-        {
-            return value.Split(", ")
-                .Select(s =>
-                {
-                    if (int.TryParse(s, out var num))
-                    {
-                        return num;
-                    }
-
-                    return -1;
-                })
-                .Where(num => num >= 0)
-                .Aggregate<int, ulong>(0, (current, item) => current | (1UL << item));
-        }
-
 
         private void SetRedValueFromText(string value)
         {
@@ -129,11 +90,6 @@ namespace WolvenKit.Views.Editors
         private ObservableCollection<string> GetSelectFromRedValue()
         {
             var c = new ObservableCollection<string>();
-
-            if (RedNumber == null)
-            {
-                return c;
-            }
             for (var i = 0; i < 64; i++)
             {
                 if (((CUInt64)RedNumber & (1UL << i)) > 0)
@@ -146,20 +102,13 @@ namespace WolvenKit.Views.Editors
 
         private string GetTextFromRedValue()
         {
-            return RedNumber == null ? "" : ((ulong)(CUInt64)RedNumber).ToString();
+            return ((ulong)(CUInt64)RedNumber).ToString();
         }
 
         private void NumberValidationTextBox(object sender, TextCompositionEventArgs e)
         {
             var tb = (TextBox)e.Source;
-            if (tb.SelectionLength == tb.Text.Length)
-            {
-                e.Handled = !ulong.TryParse(e.Text, out _);
-            }
-            else
-            {
-                e.Handled = !ulong.TryParse(tb.Text.Insert(tb.CaretIndex, e.Text), out _);
-            }
+            e.Handled = !ulong.TryParse(tb.Text.Insert(tb.CaretIndex, e.Text), out _);
         }
     }
 }

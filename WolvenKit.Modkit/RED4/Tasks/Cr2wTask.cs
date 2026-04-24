@@ -126,12 +126,12 @@ public partial class ConsoleFunctions
 
                 if (print)
                 {
-                    var text = await _modTools.ConvertToJsonAsync(infile, true);
+                    var text = await Task.Run(() => _modTools.ConvertToText(format, infile, true));
                     Console.WriteLine(text);
                 }
                 else
                 {
-                    if (await _modTools.ConvertToJsonAndWriteAsync(infile, outputDirInfo))
+                    if (await Task.Run(() => _modTools.ConvertToAndWrite(format, infile, outputDirInfo)))
                     {
                         _loggerService.Success($"Saved {infile} to {format}.");
                     }
@@ -142,7 +142,7 @@ public partial class ConsoleFunctions
             {
                 try
                 {
-                    await _modTools.ConvertFromJsonAndWriteAsync(fileInfo, outputDirInfo);
+                    _modTools.ConvertFromAndWrite(fileInfo, outputDirInfo);
                     _loggerService.Success($"Converted {fileInfo.FullName} to CR2W");
                 }
                 catch (Exception e)

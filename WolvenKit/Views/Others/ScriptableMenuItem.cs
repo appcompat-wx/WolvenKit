@@ -4,15 +4,13 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using Splat;
-using WolvenKit.App.Scripting;
-using WolvenKit.App.Services;
-using WolvenKit.Views.Templates;
+using WolvenKit.Functionality.Services;
 
 namespace WolvenKit.Views.Others;
 
 public class ScriptableMenuItem : MenuItem, IScriptableControl
 {
-    private AppScriptService _scriptService;
+    private ExtendedScriptService _scriptService;
 
     private readonly List<UIElement> _scriptedElements = new();
     private bool _disposed;
@@ -22,7 +20,7 @@ public class ScriptableMenuItem : MenuItem, IScriptableControl
 
     public string ScriptingName
     {
-        get => (string)GetValue(ScriptingNameProperty);
+        get => (string) GetValue(ScriptingNameProperty);
         set => SetValue(ScriptingNameProperty, value);
     }
 
@@ -33,10 +31,10 @@ public class ScriptableMenuItem : MenuItem, IScriptableControl
             throw new Exception("ScriptingName must be explicitly set!");
         }
 
-        _scriptService = Locator.Current.GetService<AppScriptService>();
+        _scriptService = Locator.Current.GetService<ExtendedScriptService>();
         if (_scriptService == null)
         {
-            throw new Exception("AppScriptService could not be found!");
+            throw new Exception("ExtendedScriptService could not be found!");
         }
 
         _scriptService.RegisterControl(this);
@@ -44,37 +42,15 @@ public class ScriptableMenuItem : MenuItem, IScriptableControl
         base.OnInitialized(e);
     }
 
-    public void AddScriptedElements(List<ScriptFunctionWrapper> scriptEntries)
+    public void AddScriptedElements(List<ScriptEntry> scriptEntries)
     {
         foreach (var scriptEntry in scriptEntries)
         {
-            var menuItem = CreateTree(scriptEntry);
+            var menuItem = new MenuItem { Header = scriptEntry.Name };
+            menuItem.Click += (_, _) => scriptEntry.Execute();
 
             Items.Add(menuItem);
             _scriptedElements.Add(menuItem);
-        }
-
-        MenuItem CreateTree(ScriptFunctionWrapper scriptEntry)
-        {
-            var menuItem = new MenuItem
-            {
-                Header = scriptEntry.Name,
-            };
-
-            menuItem.SetResourceReference(PaddingProperty, "WolvenKitMarginHorizontal");
-            menuItem.SetResourceReference(FontSizeProperty, "WolvenKitFontSubTitle");
-            if (scriptEntry.HasFunction)
-            {
-                menuItem.Click += (_, _) => scriptEntry.Execute();
-                menuItem.Icon = new IconBox();
-            }
-
-            foreach (var child in scriptEntry.Children)
-            {
-                menuItem.Items.Add(CreateTree(child));
-            }
-
-            return menuItem;
         }
     }
 

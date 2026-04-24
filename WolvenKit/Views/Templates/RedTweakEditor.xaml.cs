@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
 using Splat;
-using WolvenKit.App.Services;
+using WolvenKit.Functionality.Services;
 using WolvenKit.RED4.Types;
 
 namespace WolvenKit.Views.Editors

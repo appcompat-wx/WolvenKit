@@ -4,591 +4,344 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
+using System.Windows.Input;
+using DynamicData.Kernel;
 using Microsoft.Extensions.Options;
-using WolvenKit.App.Factories;
-using WolvenKit.App.Helpers;
-using WolvenKit.App.Models.ProjectManagement.Project;
-using WolvenKit.App.Services;
+using Prism.Commands;
+using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
+using Splat;
+using WolvenKit.App;
 using WolvenKit.App.ViewModels.Dialogs;
-using WolvenKit.App.ViewModels.Shell;
 using WolvenKit.Common;
 using WolvenKit.Common.FNV1A;
 using WolvenKit.Common.Services;
-using WolvenKit.Core.Extensions;
 using WolvenKit.Core.Interfaces;
+using WolvenKit.Functionality.Services;
+using WolvenKit.Modkit.RED4;
 using WolvenKit.RED4.Archive;
 using WolvenKit.RED4.Archive.CR2W;
+using WolvenKit.RED4.Archive.IO;
 using WolvenKit.RED4.CR2W;
 using WolvenKit.RED4.Types;
+using WolvenKit.ViewModels.Dialogs;
+using WolvenKit.ViewModels.Shell;
 
-namespace WolvenKit.App.ViewModels.Documents;
-
-public enum ERedDocumentItemType
+namespace WolvenKit.ViewModels.Documents
 {
-    MainFile,
-    W2rcBuffer,
-    Buffer,
-    Editor
-}
-
-public partial class RedDocumentViewModel : DocumentViewModel
-{
-    private readonly IDocumentTabViewmodelFactory _documentTabViewmodelFactory;
-    private readonly IChunkViewmodelFactory _chunkViewmodelFactory;
-    private readonly IProjectManager _projectManager;
-    private readonly ILoggerService _loggerService;
-    private readonly IOptions<Globals> _globals;
-    private readonly Red4ParserService _parserService;
-    private readonly IArchiveManager _archiveManager;
-    private readonly IHookService _hookService;
-    private readonly INodeWrapperFactory _nodeWrapperFactory;
-    private readonly Cr2WTools _cr2WTools;
-
-
-    private readonly AppViewModel _appViewModel;
-
-    protected readonly HashSet<string> _embedHashSet;
-
-    private readonly string _path;
-    private bool _suppressNextReload;
-
-    public RedDocumentViewModel(CR2WFile file, string path, AppViewModel appViewModel,
-        IDocumentTabViewmodelFactory documentTabViewmodelFactory,
-        IChunkViewmodelFactory chunkViewmodelFactory,
-        IProjectManager projectManager,
-        ILoggerService loggerService,
-        IOptions<Globals> globals,
-        Red4ParserService parserService,
-        IArchiveManager archiveManager,
-        IHookService hookService,
-        INodeWrapperFactory nodeWrapperFactory,
-        Cr2WTools cr2WTools,
-        ISettingsManager settingsManager,
-        bool isReadyOnly = false) : base(path)
+    public enum ERedDocumentItemType
     {
-        _documentTabViewmodelFactory = documentTabViewmodelFactory;
-        _chunkViewmodelFactory = chunkViewmodelFactory;
-        _projectManager = projectManager;
-        _loggerService = loggerService;
-        _globals = globals;
-        _parserService = parserService;
-        _archiveManager = archiveManager;
-        _hookService = hookService;
-        _nodeWrapperFactory = nodeWrapperFactory;
-        _cr2WTools = cr2WTools;
-
-        _appViewModel = appViewModel;
-        _embedHashSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "yaml",
-            "yml",
-            "xl"
-        };
-
-        _path = path;
-
-        _extension = Path.GetExtension(path) != "" ? Path.GetExtension(path)[1..] : "";
-
-        Cr2wFile = file;
-        IsReadOnly = isReadyOnly;
-        _isInitialized = true;
-
-        PopulateItems();
+        MainFile,
+        W2rcBuffer,
+        Buffer,
+        Editor
     }
 
-    #region properties
-    
-    public CR2WFile Cr2wFile { get; set; }
-
-    public event EventHandler? OnSaveCompleted;
-
-    [ObservableProperty] private ObservableCollection<RedDocumentTabViewModel> _tabItemViewModels = new();
-
-    [ObservableProperty] private int _selectedIndex;
-
-    [ObservableProperty] private RedDocumentTabViewModel? _selectedTabItemViewModel;
-
-    partial void OnSelectedTabItemViewModelChanged(RedDocumentTabViewModel? value)
+    public class RedDocumentViewModel : DocumentViewModel
     {
-        // Communicate index of selected world node across tabs
-        switch (value)
+        protected readonly HashSet<string> _embedHashSet;
+        protected readonly ILoggerService _loggerService;
+        protected readonly Red4ParserService _parser;
+        protected readonly IHashService _hashService;
+        protected readonly IProjectManager _projectManager;
+        protected readonly IOptions<Globals> _globals;
+
+
+        public CR2WFile Cr2wFile;
+
+        public RedDocumentViewModel(string path) : base(path)
         {
-            case RDTDataViewModel model:
-                if (_selectedWorldNodeIndex is not null)
+            _embedHashSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "yaml",
+                "yml",
+                "xl"
+            };
+            _loggerService = Locator.Current.GetService<ILoggerService>();
+            _parser = Locator.Current.GetService<Red4ParserService>();
+            _hashService = Locator.Current.GetService<IHashService>();
+            _projectManager = Locator.Current.GetService<IProjectManager>();
+            _globals = Locator.Current.GetService<IOptions<Globals>>();
+
+            if (_projectManager.ActiveProject != null)
+            {
+                // assume files that don't exist are relative paths
+                RelativePath = File.Exists(path) ? Path.GetRelativePath(_projectManager.ActiveProject.ModDirectory, path) : path;
+            }
+
+            Extension = Path.GetExtension(path) != "" ? Path.GetExtension(path)[1..] : "";
+            NewEmbeddedFileCommand = new DelegateCommand(ExecuteNewEmbeddedFile, CanExecuteNewEmbeddedFile);
+
+            this.WhenAnyValue(x => x.SelectedTabItemViewModel)
+                .Subscribe(x => x?.OnSelected());
+        }
+
+        #region properties
+
+        [Reactive] public ObservableCollection<RedDocumentTabViewModel> TabItemViewModels { get; set; } = new();
+
+        [Reactive] public int SelectedIndex { get; set; }
+
+        [Reactive] public RedDocumentTabViewModel SelectedTabItemViewModel { get; set; }
+
+        [Reactive] public string RelativePath { get; set; }
+
+        [Reactive] public string Extension { get; set; }
+
+        #endregion
+
+
+        #region methods
+
+        public override Task OnSave(object parameter)
+        {
+            var tmpPath = Path.ChangeExtension(FilePath, ".tmp");
+
+            using var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.ReadWrite);
+            var file = GetMainFile();
+
+            try
+            {
+                // if we're in a text view, use a normal StreamWriter, else use the CR2W one
+                if (file.Value is RDTTextViewModel textViewModel)
                 {
-                    int.TryParse(_selectedWorldNodeIndex, out var worldNodeIndex);
-                    model.AddToSelection(model.FindWorldNode(worldNodeIndex));
+                    using var tw = new StreamWriter(fs);
+                    var text = textViewModel.Document.Text;
+                    tw.Write(text);
                 }
-                model.OnReloadRequired += OnReloadTabs;
-                break;
-            case RDTMeshViewModel meshViewModel:
-                meshViewModel.SelectedNodeIndex = _selectedWorldNodeIndex;
-                break;
-        }
+                else if (file.HasValue && Cr2wFile != null)
+                {
+                    using var writer = new CR2WWriter(fs);
+                    writer.WriteFile(Cr2wFile);
+                }
+            }
+            catch (Exception e)
+            {
+                _loggerService.Error($"Error while saving {FilePath}");
+                _loggerService.Error(e);
 
+                fs.Dispose();
+                File.Delete(tmpPath);
 
-        ShowMenuToolbar = value?.FilePath.EndsWith(".mesh") == true;
-        value?.OnSelected();
-    }
+                return Task.CompletedTask;
+            }
 
-    private void OnReloadTabs(object? sender, EventArgs e)
-    {
-        PopulateItems(true);
-    }
+            if (File.Exists(FilePath))
+            {
+                File.Delete(FilePath);
+            }
+            File.Move(tmpPath, FilePath);
 
-    // assume files that don't exist are relative paths
-    public string RelativePath
-    {
-        get
-        {
-            return File.Exists(_path)
-                ? Path.GetRelativePath(_projectManager.ActiveProject.NotNull().ModDirectory, _path)
-                : _path;
-        }
-    }
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(NewEmbeddedFileCommand))]
-    private string _extension;
-
-    [ObservableProperty] private bool _showMenuToolbar;
-
-    #endregion
-
-    #region commands
-
-    private bool CanExecuteNewEmbeddedFile() => !_embedHashSet.Contains(Extension);
-    [RelayCommand(CanExecute = nameof(CanExecuteNewEmbeddedFile))]
-    private async Task NewEmbeddedFile()
-    {
-        var types = FileTypeHelper.FileTypes
-            .OrderBy(x => x.Extension)
-            .Select(fileType => new TypeEntry(fileType.Extension.ToString(), fileType.Description, fileType.RootType))
-            .ToList();
-
-        await _appViewModel.SetActiveDialog(new TypeSelectorDialogViewModel(types)
-        {
-            DialogHandler = HandleEmbeddedFile
-        });
-    }
-
-    #endregion
-
-    #region methods
-
-    public Cp77Project? GetActiveProject() => _projectManager.ActiveProject;
-
-    public ILoggerService GetLoggerService() => _loggerService;
-
-    public override async Task Save(object? parameter)
-    {
-        SaveSync(parameter);
-        await Task.CompletedTask;
-    }
-
-    protected override void SaveAs(SaveAsParameters saveParams)
-    {
-        var cr2W = Cr2wFile;
-        if (!saveParams.SkipOnSaveHook && _hookService is AppHookService appHookService &&
-            !appHookService.OnSave(FilePath, ref cr2W))
-        {
-            _loggerService.Error($"Error while processing onSave hooks");
-        }
-
-        if (!SaveSync(saveParams.OriginalObject, saveParams.AbsoluteFilePath))
-        {
-            throw new Exception($"Failed to save {saveParams.AbsoluteFilePath}");
-        }
-    }
-
-    public bool SaveSync(object? _, string? filePath = null)
-    {
-        filePath ??= FilePath;
-        var cr2w = Cr2wFile;
-
-        if (_hookService is AppHookService appHookService && !appHookService.OnSave(FilePath, ref cr2w))
-        {
-            _loggerService.Error($"Error while processing onSave hooks");
-            return false;
-        }
-
-        _suppressNextReload = true;
-
-        if (GetMainFile() is null || !_cr2WTools.WriteCr2W(cr2w, filePath))
-        {
-            _suppressNextReload = false; // Clear on failure
-            return false;
-        }
-
-        LastWriteTime = File.GetLastWriteTime(filePath);
-        SetIsDirty(false);
-        OnSaveCompleted?.Invoke(this, EventArgs.Empty);
-        return true;
-    }
-
-
-    public override bool Reload(bool force)
-    {
-        if (_suppressNextReload)
-        {
-            _suppressNextReload = false; // Consume the flag
-            // This reload was triggered by our own save.
-            // We just need to update the timestamp and dirty state, not rebuild the UI.
             SetIsDirty(false);
-            LastWriteTime = File.GetLastWriteTime(FilePath);
+            _loggerService.Success($"Saved file {FilePath}");
+
+            return Task.CompletedTask;
+        }
+
+        public bool OpenStream(Stream stream, string path)
+        {
+            using var reader = new BinaryReader(stream);
+
+            if (!_parser.TryReadRed4File(reader, out Cr2wFile))
+            {
+                _loggerService.Error($"Failed to read cr2w file {path}");
+                return false;
+            }
+            //cr2w.FileName = path;
+
+            // already set by base()?
+            //ContentId = path;
+            FilePath = path;
+            _isInitialized = true;
+
+            PopulateItems();
             return true;
         }
 
-        if (!File.Exists(FilePath) || (!force && IsDirty))
+        public override bool OpenFile(string path)
         {
+            _isInitialized = false;
+
+            try
+            {
+                using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    OpenStream(stream, path);
+                }
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                _loggerService.Error(e);
+                // Not processing this catch in any other way than rejecting to initialize this
+                _isInitialized = false;
+            }
+
             return false;
         }
 
-        // If we got here, it means the files were different, or an error occurred during comparison.
-        // Proceed with the original, destructive reload.
-        try
+        public override Task<bool> OpenFileAsync(string path)
         {
-            var cr2WFile = _cr2WTools.ReadCr2W(FilePath);
-            Cr2wFile = cr2WFile;
+            _isInitialized = false;
+
+            try
+            {
+                using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    OpenStream(stream, path);
+                }
+
+                return Task.FromResult(true);
+            }
+            catch (Exception e)
+            {
+                _loggerService.Error(e);
+                // Not processing this catch in any other way than rejecting to initialize this
+                _isInitialized = false;
+            }
+
+            return Task.FromResult(false);
         }
-        catch (Exception)
+
+        public Optional<RedDocumentTabViewModel> GetMainFile()
         {
-            return false;
-        }
-        PopulateItems();
+            if (SelectedTabItemViewModel is RDTTextViewModel textVM)
+            {
+                return Optional<RedDocumentTabViewModel>.ToOptional(textVM);
+            }
 
-        SetIsDirty(false);
-        LastWriteTime = File.GetLastWriteTime(FilePath);
-
-        return true;
-    }
-
-    public RedDocumentTabViewModel? GetMainFile()
-    {
-        return TabItemViewModels
+            var r = TabItemViewModels
             .OfType<RDTDataViewModel>()
-            .FirstOrDefault(x => x.DocumentItemType == ERedDocumentItemType.MainFile);
-    }
+            .Where(x => x.DocumentItemType == ERedDocumentItemType.MainFile)
+            .FirstOrDefault();
+            return Optional<RedDocumentTabViewModel>.ToOptional(r);
+        }
 
-    protected void AddTabForRedType(RedBaseClass cls)
-    {
-        if (cls is CBitmapTexture xbm)
+        protected void AddTabForRedType(RedBaseClass cls)
         {
-            TabItemViewModels.Add(_documentTabViewmodelFactory.RDTTextureViewModel(xbm, this));
-        }
-        if (cls is CCubeTexture cube)
-        {
-            TabItemViewModels.Add(_documentTabViewmodelFactory.RDTTextureViewModel(cube, this));
-        }
-        if (cls is CTextureArray texa)
-        {
-            TabItemViewModels.Add(_documentTabViewmodelFactory.RDTLayeredPreviewViewModel(texa, this));
-        }
-        if (cls is CMesh mesh && mesh.RenderResourceBlob != null && mesh.RenderResourceBlob.GetValue() is rendRenderTextureBlobPC)
-        {
-            TabItemViewModels.Add(_documentTabViewmodelFactory.RDTTextureViewModel(mesh, this));
-        }
-        if (cls is CReflectionProbeDataResource probe && probe.TextureData.RenderResourceBlobPC.GetValue() is rendRenderTextureBlobPC)
-        {
-            TabItemViewModels.Add(_documentTabViewmodelFactory.RDTLayeredPreviewViewModel(probe, this));
-        }
-        if (cls is Multilayer_Mask mlmask)
-        {
-            TabItemViewModels.Add(_documentTabViewmodelFactory.RDTLayeredPreviewViewModel(mlmask, this));
-        }
-        if (cls is inkTextureAtlas atlas)
-        {
-            var tab = _documentTabViewmodelFactory.RDTInkTextureAtlasViewModel(atlas, this);
-            tab.ChangeEvent += OnPartNameChanged;
-            TabItemViewModels.Add(tab);
-        }
-        if (cls is inkWidgetLibraryResource library)
-        {
-            TabItemViewModels.Add(new RDTWidgetViewModel(library, this));
-        }
-        if (cls is CMesh mesh2)
-        {
-            TabItemViewModels.Add(_documentTabViewmodelFactory.RDTMeshViewModel(mesh2, this));
-        }
-        if (cls is entEntityTemplate ent)
-        {
-            TabItemViewModels.Add(_documentTabViewmodelFactory.RDTMeshViewModel(ent, this));
-        }
-        if (cls is worldStreamingSector wss)
-        {
-            var tab = _documentTabViewmodelFactory.RDTMeshViewModel(wss, this);
-            tab.OnSectorNodeSelected += OnSectorNodeSelected;
-            TabItemViewModels.Add(tab);
-        }
-        if (cls is worldStreamingBlock wsb)
-        {
-            TabItemViewModels.Add(_documentTabViewmodelFactory.RDTMeshViewModel(wsb, this));
-        }
-        if (cls is scnSceneResource sceneResource)
-        {
-            var combinedSceneTab = new SceneGraphViewModel(sceneResource, this, _chunkViewmodelFactory, _nodeWrapperFactory);
-            TabItemViewModels.Insert(0, combinedSceneTab);
-
-            if (_globals.Value.ENABLE_NODE_EDITOR)
+            if (cls is CBitmapTexture xbm)
             {
-                TabItemViewModels.Add(new RDTGraphViewModel2(sceneResource, this, _nodeWrapperFactory));
+                TabItemViewModels.Add(new RDTTextureViewModel(xbm, this));
             }
-
-            return;
-        }
-
-        if (cls is questQuestPhaseResource questPhaseResource)
-        {
-            var combinedQuestPhaseTab = new QuestPhaseGraphViewModel(questPhaseResource, this, _chunkViewmodelFactory, _nodeWrapperFactory);
-            TabItemViewModels.Insert(0, combinedQuestPhaseTab);
-
-            if (_globals.Value.ENABLE_NODE_EDITOR)
+            if (cls is CCubeTexture cube)
             {
-                TabItemViewModels.Add(new RDTGraphViewModel2(questPhaseResource, this, _nodeWrapperFactory));
+                TabItemViewModels.Add(new RDTTextureViewModel(cube, this));
             }
-
-            return;
-        }
-
-        if (_globals.Value.ENABLE_NODE_EDITOR && cls is graphGraphResource)
-        {
-            TabItemViewModels.Add(new RDTGraphViewModel2(cls, this, _nodeWrapperFactory));
-        }
-    }
-
-    private string? _selectedWorldNodeIndex;
-
-    private void OnSectorNodeSelected(object? sender, string? e) => _selectedWorldNodeIndex = e;
-
-    private void OnPartNameChanged(object sender, EventArgs e)
-    {
-        if (GetMainFile() is not RDTDataViewModel m || m.Chunks.Count == 0 || m.Chunks[0] is not { ResolvedData: inkTextureAtlas } cvm ||
-            cvm.Properties.FirstOrDefault((p) => p.Name == "slots") is not ChunkViewModel child)
-        {
-            return;
-        }
-
-        foreach (var chunkViewModel in child.Properties.Where(p => p.ResolvedData is inkTextureSlot).ToList())
-        {
-            m.DirtyChunks.Add(chunkViewModel);
-        }
-
-        SetIsDirty(m.DirtyChunks.Count > 0);
-    }
-
-
-    public void PopulateItems(bool keepRootTab = false)
-    {
-        foreach (var tab in TabItemViewModels)
-        {
-            switch (tab)
+            if (cls is CTextureArray texa)
             {
-                case RDTInkTextureAtlasViewModel inkTextureTab:
-                    inkTextureTab.ChangeEvent -= OnPartNameChanged;
-                    break;
-                case RDTMeshViewModel meshTab:
-                    meshTab.OnSectorNodeSelected -= OnSectorNodeSelected;
-                    break;
-                case RDTDataViewModel dataViewModel when !keepRootTab:
-                    dataViewModel.OnSectorNodeSelected -= OnSectorNodeSelected;
-                    break;
-                default:
-                    break;
+                TabItemViewModels.Add(new RDTTextureViewModel(texa, this));
             }
-        }
-
-        RDTDataViewModel rootTab;
-        if (keepRootTab)
-        {
-            rootTab = TabItemViewModels.OfType<RDTDataViewModel>().First();
-        }
-        else
-        {
-            rootTab = _documentTabViewmodelFactory.RDTDataViewModel(Cr2wFile.RootChunk, this, _appViewModel, _chunkViewmodelFactory);
-            rootTab.OnSectorNodeSelected += OnSectorNodeSelected;
-        }
-
-        TabItemViewModels.Clear();
-
-        TabItemViewModels.Add(rootTab);
-        AddTabForRedType(Cr2wFile.RootChunk);
-
-        foreach (var file in Cr2wFile.EmbeddedFiles)
-        {
-            if (file.Content != null)
+            if (cls is CMesh mesh && mesh.RenderResourceBlob != null && mesh.RenderResourceBlob.GetValue() is rendRenderTextureBlobPC)
             {
-                var vm = _documentTabViewmodelFactory.RDTDataViewModel(file.Content, this, _appViewModel, _chunkViewmodelFactory);
-                vm.FilePath = file.FileName.GetResolvedText()!;
-                vm.IsEmbeddedFile = true;
-
-                TabItemViewModels.Add(vm);
-                AddTabForRedType(file.Content);
+                TabItemViewModels.Add(new RDTTextureViewModel(mesh, this));
             }
-        }
-
-        SelectedIndex = 0;
-
-        SelectedTabItemViewModel = TabItemViewModels.FirstOrDefault();
-    }
-
-    public Dictionary<ResourcePath, CR2WFile?> Files { get; set; } = new();
-
-    public CR2WFile? GetFileFromDepotPathOrCache(ResourcePath depotPath)
-    {
-        if (depotPath == ResourcePath.Empty)
-        {
-            return null;
-        }
-
-        var existingPath = depotPath.GetResolvedText();
-        if (existingPath?.StartsWith('*') is true)
-        {
-            existingPath = ArchiveXlHelper.GetFirstExistingPath(existingPath);
-        }
-
-        if (string.IsNullOrEmpty(existingPath))
-        {
-            return null;
-        }
-
-        lock (Files)
-        {
-            if (!Files.ContainsKey(existingPath))
+            if (cls is CReflectionProbeDataResource probe && probe.TextureData.RenderResourceBlobPC.GetValue() is rendRenderTextureBlobPC)
             {
-                var file = GetFileFromDepotPath(existingPath, false);
-                Files[existingPath] = file;
+                TabItemViewModels.Add(new RDTTextureViewModel(probe, this));
             }
-
-            if (Files[existingPath] != null)
+            if (cls is Multilayer_Mask mlmask)
             {
-                foreach (var res in Files[existingPath]!.EmbeddedFiles)
+                // maybe it makes more sense to put these all into one tab?
+                ModTools.ConvertMultilayerMaskToDdsStreams(mlmask, out var streams);
+                for (var i = 0; i < streams.Count; i++)
                 {
-                    if (!Files.ContainsKey(res.FileName))
+                    var tab = new RDTTextureViewModel(streams[i], this)
                     {
-                        Files.Add(res.FileName, new CR2WFile()
-                        {
-                            RootChunk = res.Content
-                        });
+                        Header = $"MultiLayer {i}"
+                    };
+                    TabItemViewModels.Add(tab);
+                }
+            }
+            if (cls is inkTextureAtlas atlas)
+            {
+                if (atlas.Slots[0] != null)
+                {
+                    var file = GetFileFromDepotPath(atlas.Slots[0].Texture.DepotPath);
+                    if (file != null)
+                    {
+                        TabItemViewModels.Add(new RDTInkTextureAtlasViewModel(atlas, (CBitmapTexture)file.RootChunk, this));
                     }
+                }
+            }
+            if (cls is inkWidgetLibraryResource library)
+            {
+                TabItemViewModels.Add(new RDTWidgetViewModel(library, this));
+            }
+            if (cls is CMesh mesh2)
+            {
+                TabItemViewModels.Add(new RDTMeshViewModel(mesh2, this));
+            }
+            if (cls is entEntityTemplate ent)
+            {
+                TabItemViewModels.Add(new RDTMeshViewModel(ent, this));
+            }
+            if (cls is worldStreamingSector wss)
+            {
+                TabItemViewModels.Add(new RDTMeshViewModel(wss, this));
+            }
+            if (cls is worldStreamingBlock wsb)
+            {
+                TabItemViewModels.Add(new RDTMeshViewModel(wsb, this));
+            }
+            if (cls is graphGraphResource ggr)
+            {
+                if (_globals.Value.ENABLE_NODE_EDITOR)
+                {
+                    TabItemViewModels.Add(new RDTGraphViewModel(ggr, this));
+                }
+            }
+            if (cls is scnSceneResource ssr)
+            {
+                if (_globals.Value.ENABLE_NODE_EDITOR)
+                {
+                    TabItemViewModels.Add(new RDTGraphViewModel(ssr, this));
                 }
             }
         }
 
-        return Files[existingPath];
-    }
-
-    public void HandleEmbeddedFile(DialogViewModel? sender)
-    {
-        if (Cr2wFile is null)
+        private void PopulateItems()
         {
-            return;
-        }
-
-        _appViewModel.CloseDialogCommand.Execute(null);
-        if (sender is TypeSelectorDialogViewModel { SelectedEntry.UserData: Type selectedType })
-        {
-            var instance = RedTypeManager.Create(selectedType);
-
-            var file = new CR2WEmbedded
+            var root = new RDTDataViewModel(Cr2wFile.RootChunk, this)
             {
-                Content = instance,
-                FileName = "unnamed." + FileTypeHelper.GetFileExtensionsFromRootName(instance.GetType().Name)[0]
+                FilePath = "(root)"
             };
+            TabItemViewModels.Add(root);
+            AddTabForRedType(Cr2wFile.RootChunk);
 
-            Cr2wFile.EmbeddedFiles.Add(file);
-            IsDirty = true;
-
-            var vm = _documentTabViewmodelFactory.RDTDataViewModel(file.Content, this, _appViewModel, _chunkViewmodelFactory);
-            vm.FilePath = file.FileName.GetResolvedText()!;
-            vm.IsEmbeddedFile = true;
-
-            TabItemViewModels.Add(vm);
-            AddTabForRedType(file.Content);
-        }
-    }
-
-    public CR2WFile? GetFileFromDepotPath(ResourcePath depotPath, bool original = false)
-    {
-        if (depotPath == ResourcePath.Empty)
-        {
-            return null;
-        }
-
-        var existingPath = depotPath.GetResolvedText();
-        if (existingPath?.StartsWith('*') is true)
-        {
-            existingPath = ArchiveXlHelper.GetFirstExistingPath(existingPath);
-        }
-
-        if (null == existingPath)
-        {
-            return null;
-        }
-
-        try
-        {
-            CR2WFile? cr2wFile = null;
-
-            if (!original)
+            foreach (var file in Cr2wFile.EmbeddedFiles)
             {
-                if (_projectManager.ActiveProject != null)
+                if (file.Content != null)
                 {
-                    string? path = null;
-                    if (!string.IsNullOrEmpty(existingPath))
+                    var vm = new RDTDataViewModel(file.Content, this)
                     {
-                        path = Path.Combine(_projectManager.ActiveProject.ModDirectory, existingPath);
-                        // If it's not a mod file, read from game files
-                        if (!File.Exists(path))
-                        {
-                            path = Path.Combine(_projectManager.ActiveProject.FileDirectory, existingPath);
-                        }
-                    }
-                    else
-                    {
-                        foreach (var file in Directory.GetFiles(_projectManager.ActiveProject.ModDirectory, "*", SearchOption.AllDirectories))
-                        {
-                            var relativePath = _projectManager.ActiveProject.GetRelativePath(file);
-                            if (depotPath.GetRedHash() == ResourcePath.CalculateHash(relativePath))
-                            {
-                                path = file;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (path != null && File.Exists(path))
-                    {
-                        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                        using var reader = new BinaryReader(stream);
-                        cr2wFile = _parserService.ReadRed4File(reader);
-                    }
+                        FilePath = file.FileName,
+                        IsEmbeddedFile = true
+                    };
+                    TabItemViewModels.Add(vm);
+                    AddTabForRedType(file.Content);
                 }
             }
 
-            if (cr2wFile == null)
-            {
-                var file = _archiveManager.Lookup(depotPath.GetRedHash());
-                if (file is { HasValue: true, Value: FileEntry fe })
-                {
-                    using var stream = new MemoryStream();
-                    fe.Extract(stream);
+            SelectedIndex = 0;
 
-                    cr2wFile = _parserService.ReadRed4File(stream);
-                }
-            }
+            SelectedTabItemViewModel = TabItemViewModels.FirstOrDefault();
+        }
 
-            if (cr2wFile != null)
+        public Dictionary<CName, CR2WFile> Files { get; set; } = new();
+
+        public CR2WFile GetFileFromDepotPathOrCache(CName depotPath)
+        {
+            lock (Files)
             {
-                if (!string.IsNullOrEmpty(depotPath))
+                if (!Files.ContainsKey(depotPath))
                 {
-                    cr2wFile.MetaData.FileName = depotPath;
+                    Files[depotPath] = GetFileFromDepotPath(depotPath);
                 }
 
-                lock (Files)
+                if (Files[depotPath] != null)
                 {
-                    foreach (var res in cr2wFile.EmbeddedFiles)
+                    foreach (var res in Files[depotPath].EmbeddedFiles)
                     {
                         if (!Files.ContainsKey(res.FileName))
                         {
@@ -599,46 +352,159 @@ public partial class RedDocumentViewModel : DocumentViewModel
                         }
                     }
                 }
+            }
+            return Files[depotPath];
+        }
 
-                return cr2wFile;
+        public ICommand NewEmbeddedFileCommand { get; private set; }
+        private bool CanExecuteNewEmbeddedFile() => !_embedHashSet.Contains(Extension);
+        private void ExecuteNewEmbeddedFile()
+        {
+            var existing = new ObservableCollection<string>(AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(s => s.GetTypes())
+                .Where(p => p.IsAssignableTo(typeof(CResource)) && p.IsClass)
+                .Select(x => x.Name));
+
+            var app = Locator.Current.GetService<AppViewModel>();
+            app.SetActiveDialog(new CreateClassDialogViewModel(existing, true)
+            {
+                DialogHandler = HandleEmbeddedFile
+            });
+        }
+
+        public void HandleEmbeddedFile(DialogViewModel sender)
+        {
+            var app = Locator.Current.GetService<AppViewModel>();
+            app.CloseDialogCommand.Execute(null);
+            if (sender is not null and CreateClassDialogViewModel dvm)
+            {
+                var instance = RedTypeManager.Create(dvm.SelectedClass);
+
+                var file = new CR2WEmbedded
+                {
+                    Content = instance,
+                    FileName = "unnamed." + FileTypeHelper.GetFileExtensionsFromRootName(instance.GetType().Name)[0]
+                };
+
+                Cr2wFile.EmbeddedFiles.Add(file);
+                IsDirty = true;
+
+                var vm = new RDTDataViewModel(file.Content, this)
+                {
+                    FilePath = file.FileName,
+                    IsEmbeddedFile = true
+                };
+                TabItemViewModels.Add(vm);
+                AddTabForRedType(file.Content);
             }
         }
-        catch (Exception)
-        {
-            // ignore
-        }
 
-        return null;
-    }
-
-    public RedDocumentTabViewModel? OpenRefAsTab(string path)
-    {
-        var tab = OpenRefAsTab(FNV1A64HashAlgorithm.HashString(path));
-        if (tab is null)
+        public CR2WFile GetFileFromDepotPath(CName depotPath, bool original = false)
         {
+            if (depotPath == CName.Empty)
+            {
+                return null;
+            }
+
+            try
+            {
+                CR2WFile cr2wFile = null;
+
+                if (!original)
+                {
+                    var projectManager = Locator.Current.GetService<IProjectManager>();
+                    if (projectManager.ActiveProject != null)
+                    {
+                        string path = null;
+                        if (!string.IsNullOrEmpty(depotPath))
+                        {
+                            path = Path.Combine(projectManager.ActiveProject.ModDirectory, (string)depotPath);
+                        }
+                        else
+                        {
+                            var fm = Locator.Current.GetService<IWatcherService>().GetFileModelFromHash(depotPath.GetRedHash());
+                            if (fm != null)
+                            {
+                                path = fm.FullName;
+                            }
+                        }
+
+                        if (path != null && File.Exists(path))
+                        {
+                            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                            using var reader = new BinaryReader(stream);
+                            cr2wFile = _parser.ReadRed4File(reader);
+                        }
+                    }
+                }
+
+                if (cr2wFile == null)
+                {
+                    var _archiveManager = Locator.Current.GetService<IArchiveManager>();
+                    var file = _archiveManager.Lookup(depotPath.GetRedHash());
+                    if (file.HasValue && file.Value is FileEntry fe)
+                    {
+                        using var stream = new MemoryStream();
+                        fe.Extract(stream);
+
+                        cr2wFile = _parser.ReadRed4File(stream);
+                    }
+                }
+
+                if (cr2wFile != null)
+                {
+                    if (!string.IsNullOrEmpty(depotPath))
+                    {
+                        cr2wFile.MetaData.FileName = depotPath;
+                    }
+
+                    lock (Files)
+                    {
+                        foreach (var res in cr2wFile.EmbeddedFiles)
+                        {
+                            if (!Files.ContainsKey(res.FileName))
+                            {
+                                Files.Add(res.FileName, new CR2WFile()
+                                {
+                                    RootChunk = res.Content
+                                });
+                            }
+                        }
+                    }
+
+                    return cr2wFile;
+                }
+            }
+            catch (Exception)
+            {
+                // ignore
+            }
+
             return null;
         }
 
-        tab.Header = Path.GetFileName(path);
-        tab.FilePath = path;
-        return tab;
-    }
-
-    public RedDocumentTabViewModel? OpenRefAsTab(ulong hash)
-    {
-        var file = GetFileFromDepotPath(hash);
-        if (file == null)
+        public RedDocumentTabViewModel OpenRefAsTab(string path)
         {
+            var tab = OpenRefAsTab(FNV1A64HashAlgorithm.HashString(path));
+            tab.Header = Path.GetFileName(path);
+            tab.FilePath = path;
+            return tab;
+        }
+
+        public RedDocumentTabViewModel OpenRefAsTab(ulong hash)
+        {
+            var file = GetFileFromDepotPath(hash);
+            if (file != null)
+            {
+                var tab = new RDTDataViewModel(hash.ToString(), file.RootChunk, this);
+                TabItemViewModels.Add(tab);
+                return tab;
+            }
             return null;
         }
 
-        var tab = _documentTabViewmodelFactory.RDTDataViewModel(hash.ToString(), file.RootChunk, this, _appViewModel, _chunkViewmodelFactory);
-        TabItemViewModels.Add(tab);
-        return tab;
+        #endregion
+
     }
-
-
-    #endregion
-
 }
 

@@ -4,8 +4,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using ReactiveUI;
-using WolvenKit.App.ViewModels.Shell;
 using WolvenKit.RED4.Types;
+using WolvenKit.ViewModels.Shell;
 
 namespace WolvenKit.Views.Editors
 {
@@ -52,9 +52,7 @@ namespace WolvenKit.Views.Editors
             {
                 if (cvm != null)
                 {
-                    var oldValue = cvm.Data;
-                    var newValue = (CFloat)float.Parse(value);
-                    cvm.Data = newValue;
+                    cvm.Data = (CFloat)float.Parse(value);
                 }
                 else
                 {

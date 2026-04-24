@@ -9,17 +9,15 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using CommunityToolkit.Mvvm.Input;
-using HandyControl.Tools.Extension;
 using Microsoft.Win32;
+using Prism.Commands;
 using ReactiveUI;
 using Splat;
-using WolvenKit.App.Helpers;
-using WolvenKit.App.ViewModels.Documents;
 using WolvenKit.Core.Interfaces;
 using WolvenKit.Functionality.Layout.inkWidgets;
 using WolvenKit.RED4.Archive.Buffer;
 using WolvenKit.RED4.Types;
+using WolvenKit.ViewModels.Documents;
 
 namespace WolvenKit.Views.Documents
 {
@@ -51,6 +49,8 @@ namespace WolvenKit.Views.Documents
                         x => x.TextWidgets.Values,
                         x => x.TextWidgetList.ItemsSource)
                     .DisposeWith(disposables);
+
+                ExportWidgetCommand = new DelegateCommand<object>((w) => ViewModel.ExportWidget((inkWidget)w));
 
                 if (!ResourcesLoaded)
                 {
@@ -84,24 +84,31 @@ namespace WolvenKit.Views.Documents
 
                 foreach (var item in ViewModel.library.LibraryItems)
                 {
-                    inkWidgetLibraryItemInstance itemInstance;
-                    if (item.Package.Data is CR2WWrapper { File.RootChunk: inkWidgetLibraryItemInstance inst1 })
+
+                    if (item.PackageData == null || item.PackageData.Data is not RedPackage pkg)
                     {
-                        itemInstance = inst1;
-                    }
-                    else if (item.PackageData is { Data: RedPackage { Chunks.Count: > 0 } pkg } && pkg.Chunks[0] is inkWidgetLibraryItemInstance inst2)
-                    {
-                        itemInstance = inst2;
-                    }
-                    else
-                    {
-                        Locator.Current.GetService<ILoggerService>().Warning($"LibraryItem {item.Name} did not contain any data and was skipped.");
-                        continue;
+                        if (item.Package.Data is not RedPackage pkg2)
+                        {
+                            return;
+                        }
+
+                        pkg = pkg2;
                     }
 
-                    if (itemInstance.RootWidget.GetValue() is not inkWidget root)
+                    if (pkg.Chunks.Count == 0)
                     {
-                        continue;
+                        Locator.Current.GetService<ILoggerService>().Warning(String.Format("LibraryItem {0} did not contain any packageData and was skipped.", item.Name));
+                        continue; 
+                    }
+
+                    if (pkg.Chunks[0] is not inkWidgetLibraryItemInstance inst)
+                    {
+                        return;
+                    }
+
+                    if (inst.RootWidget.GetValue() is not inkWidget root)
+                    {
+                        return;
                     }
 
                     stack.Children.Add(new TextBlock()
@@ -118,7 +125,7 @@ namespace WolvenKit.Views.Documents
 
                 WidgetExportButtons.SetCurrentValue(ItemsControl.ItemsSourceProperty, Widgets.Select(x => x.Widget));
 
-                foreach (var animation in ViewModel.InkAnimations)
+                foreach (var animation in ViewModel.inkAnimations)
                 {
                     Animations.Add(new inkControlAnimation(animation, this));
                 }
@@ -130,11 +137,8 @@ namespace WolvenKit.Views.Documents
         }
 
         // Image Preview
-        [RelayCommand]
-        private void ExportWidget(object w)
-        {
-            ViewModel.ExportWidget((inkWidget)w);
-        }
+
+        public ICommand ExportWidgetCommand { get; set; }
 
         private System.Windows.Point origin;
         private System.Windows.Point start;
@@ -145,6 +149,8 @@ namespace WolvenKit.Views.Documents
         private void SetupWidgetPreview()
         {
             var group = new TransformGroup();
+
+
             var xform = new ScaleTransform();
             //xform.ScaleY = -1;
             group.Children.Add(xform);
@@ -185,8 +191,6 @@ namespace WolvenKit.Views.Documents
             var v = start - Mouse.GetPosition(WidgetPreviewCanvas);
             tt.X = Math.Round(origin.X - v.X);
             tt.Y = Math.Round(origin.Y - v.Y);
-
-            ViewModel.GridOffset = new System.Windows.Point(tt.X, tt.Y);
         }
 
         private void WidgetPreview_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -202,40 +206,26 @@ namespace WolvenKit.Views.Documents
                 tt.X = Math.Round(origin.X);
                 tt.Y = Math.Round(origin.Y);
                 WidgetPreviewCanvas.SetCurrentValue(CursorProperty, Cursors.ScrollAll);
-
-                ViewModel.GridOffset = new System.Windows.Point(tt.X, tt.Y);
             }
         }
 
         private void WidgetPreview_MouseWheel(object sender, MouseWheelEventArgs e)
         {
             var transformGroup = (TransformGroup)WidgetPreview.RenderTransform;
-            var scale = (ScaleTransform)transformGroup.Children[0];
+            var transform = (ScaleTransform)transformGroup.Children[0];
             var pan = (TranslateTransform)transformGroup.Children[1];
 
             var zoom = e.Delta > 0 ? 1.189207115 : (1 / 1.189207115);
-            var oldZoom = scale.ScaleX;
-            var newZoom = oldZoom * zoom;
 
-            if (newZoom is < 0.1 or > 4.0)
-            {
-                return;
-            }
-            var mousePos = e.GetPosition(WidgetPreviewCanvas);
-
-            pan.X = mousePos.X - ((mousePos.X - pan.X) * (newZoom / oldZoom));
-            pan.Y = mousePos.Y - ((mousePos.Y - pan.Y) * (newZoom / oldZoom));
+            var CursorPosCanvas = e.GetPosition(WidgetPreviewCanvas);
+            pan.X += Math.Round(-(CursorPosCanvas.X - (WidgetPreviewCanvas.RenderSize.Width / 2.0) - pan.X) * (zoom - 1.0));
+            pan.Y += Math.Round(-(CursorPosCanvas.Y - (WidgetPreviewCanvas.RenderSize.Height / 2.0) - pan.Y) * (zoom - 1.0));
             end.X = pan.X;
             end.Y = pan.Y;
 
-            zoom *= scale.ScaleX;
-            scale.ScaleX = zoom;
-            scale.ScaleY = zoom;
-
-            ViewModel.GridZoom = zoom;
-            ViewModel.GridOffset = new System.Windows.Point(pan.X, pan.Y);
-
-            UpdateZoomText(zoom);
+            transform.ScaleX = zoom * transform.ScaleX;
+            transform.ScaleY = transform.ScaleX;
+            UpdateZoomText(transform.ScaleX);
         }
 
         public void UpdateZoomText(double scale)
@@ -317,35 +307,17 @@ namespace WolvenKit.Views.Documents
                 };
                 saveFileDialog1.ShowDialog();
 
-                if (saveFileDialog1.FileName.IsNullOrEmpty())
+                if (saveFileDialog1.FileName != "")
                 {
-                    continue;
+
+                    BitmapEncoder encoder = new TiffBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(bitmap));
+
+                    using var fileStream = new FileStream(saveFileDialog1.FileName, FileMode.Create);
+                    encoder.Save(fileStream);
                 }
-
-                BitmapEncoder encoder = new TiffBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(bitmap));
-
-                using var fileStream = new FileStream(saveFileDialog1.FileName, FileMode.Create);
-                encoder.Save(fileStream);
             }
 
-        }
-
-        private void ClearAndReload(object sender, RoutedEventArgs e)
-        {
-            InkCache.Resources.Clear();
-
-            Load();
-        }
-
-        private void TogglePixelGrid(object sender, RoutedEventArgs e)
-        {
-            if (ViewModel is null)
-            {
-                return;
-            }
-
-            ViewModel.IsPixelGridSnappingEnabled = !ViewModel.IsPixelGridSnappingEnabled;
         }
 
         private void ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)

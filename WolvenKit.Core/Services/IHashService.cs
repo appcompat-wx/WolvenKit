@@ -1,22 +1,19 @@
 using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace WolvenKit.Common.Services
 {
     public interface IHashService
     {
-        Task Loaded { get; }
+        bool Contains(ulong key);
 
-        void Load();
+        string Get(ulong key);
 
-        bool Contains(ulong key, bool checkUserHashes = true);
-
-        string? Get(ulong key);
+        void AddCustom(string path);
 
         public IEnumerable<ulong> GetAllHashes();
 
         public IEnumerable<ulong> GetMissingHashes();
 
-        public string? GetGuessedExtension(ulong key);
+        public string GetGuessedExtension(ulong key);
     }
 }

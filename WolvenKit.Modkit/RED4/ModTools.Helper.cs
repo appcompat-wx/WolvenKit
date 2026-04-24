@@ -1,32 +1,38 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text.RegularExpressions;
 using WolvenKit.Common.FNV1A;
 using WolvenKit.Common.Model.Arguments;
 using WolvenKit.RED4.Archive;
 using WolvenKit.RED4.Archive.CR2W;
 using WolvenKit.RED4.Archive.IO;
 using WolvenKit.RED4.Types;
-using EFileReadErrorCodes = WolvenKit.RED4.Archive.IO.EFileReadErrorCodes;
 
 namespace WolvenKit.Modkit.RED4;
 
-public enum FindFileResult
-{
-    NoError,
-    FileNotFound,
-    NoCR2W
-}
-
-public record FindFileRecord(ICyberGameArchive? Archive, CR2WFile? File, List<IRedImport>? Imports, bool IsEmbedded = false);
-
 public partial class ModTools
 {
-    private FindFileResult TryFindFile(ResourcePath path, out FindFileRecord result, bool excludeCustomArchives = false)
+    private enum FindFileResult
     {
-        var status = InternalTryFindFile(path, out result, excludeCustomArchives);
+        NoError,
+        FileNotFound,
+        NoCR2W
+    }
+
+    private class FindFileEntry
+    {
+        public CR2WFile File { get; }
+        public List<IRedImport> Imports { get; }
+
+        public FindFileEntry(CR2WFile file, List<IRedImport> imports)
+        {
+            File = file;
+            Imports = imports;
+        }
+    }
+
+    private FindFileResult TryFindFile(List<ICyberGameArchive> archives, CName path, out FindFileEntry result, bool excludeCustomArchives = false)
+    {
+        var status = InternalTryFindFile(archives, path, out result, excludeCustomArchives);
 
         var pathStr = path.GetResolvedText();
         if (status == FindFileResult.FileNotFound)
@@ -56,110 +62,66 @@ public partial class ModTools
         return status;
     }
 
-    private FindFileResult InternalTryFindFile(ulong hash, out FindFileRecord result, bool excludeCustomArchives = false)
+    private FindFileResult InternalTryFindFile(List<ICyberGameArchive> archives, ulong hash, out FindFileEntry result, bool excludeCustomArchives = false)
     {
-        var gameFile = _archiveManager.GetGameFile(hash, true, !excludeCustomArchives);
-        if (gameFile == null)
+        result = null;
+
+        foreach (var archive in archives)
         {
-            result = new FindFileRecord(null, null, null);
-            return FindFileResult.FileNotFound;
-        }
-
-        var ms = new MemoryStream();
-        gameFile.Extract(ms);
-        ms.Seek(0, SeekOrigin.Begin);
-
-        using var reader = new CR2WReader(ms);
-        reader.ParsingError += args => args is InvalidDefaultValueEventArgs;
-
-        if (reader.ReadFile(out var file) != EFileReadErrorCodes.NoError)
-        {
-            result = new FindFileRecord(null, null, null);
-            return FindFileResult.NoCR2W;
-        }
-
-        result = new FindFileRecord((ICyberGameArchive)gameFile.GetArchive(), file, reader.ImportsList);
-        return FindFileResult.NoError;
-    }
-
-    private bool UncookFile(string path, string matRepo, GlobalExportArgs args, bool excludeCustomArchives = false) => UncookFile(FNV1A64HashAlgorithm.HashString(path), matRepo, args, excludeCustomArchives);
-
-    private bool UncookFile(ulong hash, string matRepo, GlobalExportArgs args, bool excludeCustomArchives = false)
-    {
-        if (InternalTryFindFile(hash, out var result, excludeCustomArchives) != FindFileResult.NoError)
-        {
-            return false;
-        }
-
-        var di = new DirectoryInfo(matRepo);
-        if (!di.Exists)
-        {
-            di.Create();
-        }
-
-        return UncookSingle(result!.Archive!, hash, di, args);
-    }
-
-    private static readonly string s_modFolder = Path.DirectorySeparatorChar + "mod" + Path.DirectorySeparatorChar;
-    private static readonly string s_hotFolder = Path.DirectorySeparatorChar + "hot" + Path.DirectorySeparatorChar;
-    
-    /// <summary>
-    /// Install a packed mod to the game directory.
-    /// </summary>
-    /// <param name="packedDirectory">The Wolvenkit project's "packed" directory</param>
-    /// <param name="gameRootDir">The game's root directory</param>
-    /// <param name="installToHot">Will install .archive files to archive/pc/hot rather than archive/pc/mod</param>
-    /// <returns></returns>
-    public bool InstallFiles(DirectoryInfo packedDirectory, DirectoryInfo gameRootDir, bool installToHot = false)
-    {
-        var createTweakFile = installToHot && packedDirectory.GetDirectories("tweaks", SearchOption.AllDirectories).Any(); 
-        
-        foreach (var file in packedDirectory.GetFiles("*", SearchOption.AllDirectories))
-        {
-            // Get the relative path of the file with respect to the packedDirectory
-            var relativePath = file.FullName[(packedDirectory.FullName.Length + 1)..];
-
-            if (file.FullName.EndsWith(".archive") && installToHot)
+            if (excludeCustomArchives && archive is not Archive)
             {
-                relativePath = relativePath.Replace(s_modFolder, s_hotFolder);
+                continue;
             }
 
-            var destinationPath = Path.Combine(gameRootDir.FullName, relativePath);
-
-            try
+            if (archive.Files.TryGetValue(hash, out var gameFile))
             {
-                // Create the directory if it doesn't exist
-                if (Path.GetDirectoryName(destinationPath) is string dirPath && !Directory.Exists(dirPath))
+                var ms = new MemoryStream();
+                gameFile.Extract(ms);
+                ms.Seek(0, SeekOrigin.Begin);
+
+                using var reader = new CR2WReader(ms);
+                reader.ParsingError += args => args is InvalidDefaultValueEventArgs;
+
+                if (reader.ReadFile(out var file) != EFileReadErrorCodes.NoError)
                 {
-                    Directory.CreateDirectory(dirPath);
+                    return FindFileResult.NoCR2W;
                 }
 
-                // Overwrite files
-                if (File.Exists(destinationPath))
-                {
-                    File.Delete(destinationPath);
-                }
+                result = new FindFileEntry(file, reader.ImportsList);
 
-                File.Move(file.FullName, destinationPath);
-            }
-            catch (Exception _)
-            {
-                _loggerService.Error($"Failed to copy ${relativePath}:" + _.Message);
-                return false;
+                return FindFileResult.NoError;
             }
         }
 
-        if (!createTweakFile)
-        {
-            return true;
-        }
-
-        var tweakFilePath = Path.Combine(gameRootDir.FullName, @"red4ext\plugins\RedHotTools\.hot-tweaks");
-        if (!File.Exists(tweakFilePath))
-        {
-            File.Create(tweakFilePath).Close();
-        }
-        return true;
+        return FindFileResult.FileNotFound;
     }
 
+    private bool UncookFile(List<ICyberGameArchive> archives, string path, string matRepo, GlobalExportArgs args, bool excludeCustomArchives = false)
+    {
+        return UncookFile(archives, FNV1A64HashAlgorithm.HashString(path), matRepo, args, excludeCustomArchives);
+    }
+
+    private bool UncookFile(List<ICyberGameArchive> archives, ulong hash, string matRepo, GlobalExportArgs args, bool excludeCustomArchives = false)
+    {
+        foreach (var archive in archives)
+        {
+            if (excludeCustomArchives && archive is not Archive)
+            {
+                continue;
+            }
+
+            if (archive.Files.TryGetValue(hash, out var gameFile))
+            {
+                var di = new DirectoryInfo(matRepo);
+                if (!di.Exists)
+                {
+                    di.Create();
+                }
+
+                return UncookSingle(archive, gameFile.Key, di, args);
+            }
+        }
+
+        return false;
+    }
 }

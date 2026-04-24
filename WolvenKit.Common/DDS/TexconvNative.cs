@@ -11,7 +11,10 @@ public static class TexconvNative
 
         private bool disposed = false;
 
-        public ManagedBlob() => _blob = new Blob();
+        public ManagedBlob()
+        {
+            _blob = new Blob();
+        }
 
         public Blob GetBlob() => _blob;
         public byte[] GetBytes() => _blob.GetBytes();
@@ -78,14 +81,12 @@ public static class TexconvNative
     }
     public enum ESaveFileTypes
     {
-        DDS,
         BMP,
         JPEG,
         PNG,
         TGA,
         //HDR, //broken for some reason, disabling for now
         TIFF,
-        CUBE,
         /*WIC_CODEC_WMP,
         CODEC_HDP,
         CODEC_JXR,

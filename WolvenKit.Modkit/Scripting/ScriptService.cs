@@ -1,67 +1,59 @@
+﻿using Microsoft.ClearScript.V8;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.ClearScript;
 using Microsoft.ClearScript.JavaScript;
-using Microsoft.ClearScript.V8;
+using Splat;
 using WolvenKit.Core.Interfaces;
 
 namespace WolvenKit.Modkit.Scripting;
 
-public partial class ScriptService : ObservableObject
+public class ScriptService : INotifyPropertyChanged
 {
-    private readonly ConcurrentDictionary<string, ScriptFile> _scriptCache = new();
-
-    public const string ScriptExtension = "wscript";
-
     protected readonly ILoggerService _loggerService;
 
-    private V8ScriptEngine? _mainEngine;
-
-    [ObservableProperty]
+    private V8ScriptEngine _mainEngine;
     private bool _isRunning;
 
-    public static bool SuppressLogOutput { get; set; }
-    
-    public ScriptService(ILoggerService loggerService) => _loggerService = loggerService;
+    public ScriptService(ILoggerService loggerService = null)
+    {
+        _loggerService = loggerService ?? Locator.Current.GetService<ILoggerService>();
+    }
 
-    public async Task ExecuteAsync(string code, Dictionary<string, object>? hostObjects = null, List<string>? searchPaths = null, bool enableDebugging = false)
+    public bool IsRunning
+    {
+        get => _isRunning;
+        set => SetField(ref _isRunning, value);
+    }
+
+    public async Task ExecuteAsync(string code, Dictionary<string, object> hostObjects = null, string searchPath = null)
     {
         if (_mainEngine != null)
         {
-            _loggerService?.Warning("Another script is already running");
+            _loggerService.Warning("Another script is already running");
             return;
         }
 
         IsRunning = true;
 
-        var sw = Stopwatch.StartNew();
+        var sw = new Stopwatch();
+        sw.Start();
 
-        _mainEngine = GetScriptEngine(hostObjects, searchPaths, enableDebugging);
+        DocumentLoader.Default.DiscardCachedDocuments();
+
+        _mainEngine = GetScriptEngine(hostObjects, searchPath);
 
         try
         {
             await Task.Run(() => _mainEngine.Execute(new DocumentInfo { Category = ModuleCategory.Standard }, code));
         }
-        catch (ScriptEngineException ex1)
+        catch (Exception ex)
         {
-            _loggerService?.Error(ex1.ErrorDetails);
-        }
-        catch (Exception ex2)
-        {
-            if (ex2.Message == "Script execution interrupted by host" ||
-                ex2.Message == "Script execution was interrupted")
-            {
-                _loggerService?.Info("User interrupted execution of script");
-            }
-            else
-            {
-                _loggerService?.Error(ex2);
-            }
+            _loggerService.Error(ex);
         }
 
         if (_mainEngine != null)
@@ -71,12 +63,9 @@ public partial class ScriptService : ObservableObject
         }
 
         IsRunning = false;
-
+        
         sw.Stop();
-        if (!SuppressLogOutput)
-        {
-            _loggerService?.Info($"Execution time: {sw.Elapsed}");
-        }
+        _loggerService.Info($"Execution time: {sw.Elapsed}");
     }
 
     public void Stop()
@@ -91,18 +80,10 @@ public partial class ScriptService : ObservableObject
         IsRunning = false;
     }
 
-    protected virtual V8ScriptEngine GetScriptEngine(Dictionary<string, object>? hostObjects = null, List<string>? searchPaths = null, bool enableDebugging = false)
+    protected virtual V8ScriptEngine GetScriptEngine(Dictionary<string, object> hostObjects = null, string searchPath = null)
     {
-        var flags = V8ScriptEngineFlags.None;
-        if (enableDebugging)
-        {
-            flags |= V8ScriptEngineFlags.EnableDebugging;
-            flags |= V8ScriptEngineFlags.AwaitDebuggerAndPauseOnStart;
-        }
+        var engine = new V8ScriptEngine();
 
-        var engine = new V8ScriptEngine(flags);
-
-        engine.AddHostType(typeof(OpenAs));
         engine.AddHostObject("logger", _loggerService);
         if (hostObjects != null)
         {
@@ -112,50 +93,31 @@ public partial class ScriptService : ObservableObject
             }
         }
 
-        if (searchPaths != null)
+        if (!string.IsNullOrEmpty(searchPath))
         {
             engine.DocumentSettings.AccessFlags = DocumentAccessFlags.EnableFileLoading;
-            engine.DocumentSettings.SearchPath = string.Join(';', searchPaths);
+            engine.DocumentSettings.SearchPath = searchPath;
         }
-
-        engine.DocumentSettings.Loader.DiscardCachedDocuments();
 
         return engine;
     }
 
-    public virtual IList<ScriptFile> GetScripts(string path)
+    #region INotifyPropertyChanged
+
+    public event PropertyChangedEventHandler PropertyChanged;
+
+    protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
     {
-        var result = new List<ScriptFile>();
-
-        if (string.IsNullOrEmpty(path))
-        {
-            return result;
-        }
-
-        if (!Directory.Exists(path))
-        {
-            return result;
-        }
-
-        foreach (var file in Directory.GetFiles(path, $"*.{ScriptExtension}", SearchOption.AllDirectories))
-        {
-            if (!_scriptCache.TryGetValue(file, out var scriptFile))
-            {
-                scriptFile = new ScriptFile(file);
-                _scriptCache.TryAdd(file, scriptFile);
-            }
-
-            if (!scriptFile.Reload(_loggerService))
-            {
-                _scriptCache.Remove(file, out _);
-                continue;
-            }
-
-            result.Add(scriptFile);
-        }
-
-        return result;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
-    public void RemoveFromCache(string path) => _scriptCache.Remove(path, out _);
+    protected bool SetField<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value)) return false;
+        field = value;
+        OnPropertyChanged(propertyName);
+        return true;
+    }
+
+    #endregion
 }

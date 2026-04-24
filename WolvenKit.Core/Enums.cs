@@ -25,7 +25,6 @@ namespace WolvenKit.Common
         ArchiveXl,
         WScript,
         RedScript,
-        Other,
         CETLua
     }
 
@@ -56,7 +55,7 @@ namespace WolvenKit.Common
     public enum ETextConvertFormat
     {
         json,
-        //xml
+        xml
     }
 
     public enum EVanillaArchives
@@ -105,15 +104,6 @@ namespace WolvenKit.Common
         Debug
     }
 
-    public enum EArchiveSource
-    {
-        Unknown,
-        Base,
-        EP1,
-        Mod,
-        Project
-    }
-
     public enum EArchiveType
     {
         ANY,
@@ -126,16 +116,6 @@ namespace WolvenKit.Common
         Shader,
     }
 
-    // Target scope for archive manager
-    public enum ArchiveManagerScope
-    {
-        Basegame,
-        Mods,
-        BasegameAndMods,
-        LocalProject,
-        Everywhere
-    }
-
     /// <summary>
     /// Possible file extensions of cooked redengine files
     /// </summary>
@@ -143,7 +123,6 @@ namespace WolvenKit.Common
     {
         wem,
         mesh,
-        w2mesh,
         xbm,
         csv,
         //app,
@@ -158,9 +137,8 @@ namespace WolvenKit.Common
         fnt,
         opusinfo,
         anims,
-        //ent,
-        inkatlas,
-        physicalscene
+        ent,
+        inkatlas
     }
 
     /// <summary>
@@ -181,8 +159,7 @@ namespace WolvenKit.Common
         wav,
         masklist,
         csv,
-        re,
-        cube
+        re
     }
 
     public enum EConvertableOutput
@@ -237,8 +214,7 @@ namespace WolvenKit.Common
         bmp,
         jpg,
         png,
-        tiff,
-        cube
+        tiff
     }
 
     /// <summary>
@@ -308,36 +284,4 @@ namespace WolvenKit.Common
         HashedPath = 0x8,
         Inplace = 0x10,     // done
     };
-
-    public enum EGameLanguage
-    {
-        ar_ar,
-        cz_cz,
-        de_de,
-        en_us,
-        es_es,
-        es_mx,
-        fr_fr,
-        hu_hu,
-        it_it,
-        jp_jp,
-        kr_kr,
-        pl_pl,
-        pt_br,
-        ru_ru,
-        th_th,
-        tr_tr,
-        zh_cn,
-        zh_tw,
-        ua_ua
-    }
-
-    public enum LoggerVerbosity
-    {
-        Quiet,
-        Minimal,
-        Normal,
-        Detailed,
-        Diagnostic,
-    }
 }

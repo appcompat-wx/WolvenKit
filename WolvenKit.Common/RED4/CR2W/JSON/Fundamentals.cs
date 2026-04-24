@@ -1,29 +1,33 @@
 using System;
-using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using WolvenKit.RED4.Types;
 
 namespace WolvenKit.RED4.CR2W.JSON;
 
 
-public class CBoolConverter : CustomRedConverter<CBool>
+public class CBoolConverter : JsonConverter<CBool>, ICustomRedConverter
 {
+    public object ReadRedType(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => Read(ref reader, typeToConvert, options);
+
     public override CBool Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => reader.GetByte();
 
-    public override void Write(Utf8JsonWriter writer, CBool value, JsonSerializerOptions options) => 
-        writer.WriteRawValue(value ? "1": "0", true);
+    public override void Write(Utf8JsonWriter writer, CBool value, JsonSerializerOptions options) => writer.WriteNumberValue(value);
 }
 
-public class CDoubleConverter : CustomRedConverter<CDouble>
+public class CDoubleConverter : JsonConverter<CDouble>, ICustomRedConverter
 {
+    public object ReadRedType(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => Read(ref reader, typeToConvert, options);
+
     public override CDouble Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => reader.GetDouble();
 
-    public override void Write(Utf8JsonWriter writer, CDouble value, JsonSerializerOptions options) => 
-        writer.WriteRawValue(((double)value).ToString("G17", CultureInfo.InvariantCulture));
+    public override void Write(Utf8JsonWriter writer, CDouble value, JsonSerializerOptions options) => writer.WriteNumberValue(value);
 }
 
-public class CFloatConverter : CustomRedConverter<CFloat>
+public class CFloatConverter : JsonConverter<CFloat>, ICustomRedConverter
 {
+    public object ReadRedType(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => Read(ref reader, typeToConvert, options);
+
     public override CFloat Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType == JsonTokenType.String)
@@ -67,75 +71,81 @@ public class CFloatConverter : CustomRedConverter<CFloat>
         }
         else
         {
-            writer.WriteRawValue(((float)value).ToString("G9", CultureInfo.InvariantCulture));
+            writer.WriteNumberValue(value);
         }
     }
 }
 
-public class CInt8Converter : CustomRedConverter<CInt8>
+public class CInt8Converter : JsonConverter<CInt8>, ICustomRedConverter
 {
+    public object ReadRedType(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => Read(ref reader, typeToConvert, options);
+
     public override CInt8 Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => reader.GetSByte();
 
-    public override void Write(Utf8JsonWriter writer, CInt8 value, JsonSerializerOptions options) =>
-        writer.WriteRawValue(((sbyte)value).ToString(), true);
+    public override void Write(Utf8JsonWriter writer, CInt8 value, JsonSerializerOptions options) => writer.WriteNumberValue(value);
 }
 
-public class CInt16Converter : CustomRedConverter<CInt16>
+public class CInt16Converter : JsonConverter<CInt16>, ICustomRedConverter
 {
+    public object ReadRedType(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => Read(ref reader, typeToConvert, options);
+
     public override CInt16 Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => reader.GetInt16();
 
-    public override void Write(Utf8JsonWriter writer, CInt16 value, JsonSerializerOptions options) => 
-        writer.WriteRawValue(((short)value).ToString(), true);
+    public override void Write(Utf8JsonWriter writer, CInt16 value, JsonSerializerOptions options) => writer.WriteNumberValue(value);
 }
 
-public class CInt32Converter : CustomRedConverter<CInt32>
+public class CInt32Converter : JsonConverter<CInt32>, ICustomRedConverter
 {
+    public object ReadRedType(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => Read(ref reader, typeToConvert, options);
+
     public override CInt32 Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => reader.GetInt32();
 
-    public override void Write(Utf8JsonWriter writer, CInt32 value, JsonSerializerOptions options) => 
-        writer.WriteRawValue(((int)value).ToString(), true);
+    public override void Write(Utf8JsonWriter writer, CInt32 value, JsonSerializerOptions options) => writer.WriteNumberValue(value);
 }
 
-public class CInt64Converter : CustomRedConverter<CInt64>
+public class CInt64Converter : JsonConverter<CInt64>, ICustomRedConverter
 {
-    public override CInt64 Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => 
-        JsonSerializer.Deserialize<long>(ref reader, options);
+    public object ReadRedType(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => Read(ref reader, typeToConvert, options);
 
-    public override void Write(Utf8JsonWriter writer, CInt64 value, JsonSerializerOptions options) =>
-        JsonSerializer.Serialize(writer, (long)value, options);
+    public override CInt64 Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => reader.GetInt64();
+
+    public override void Write(Utf8JsonWriter writer, CInt64 value, JsonSerializerOptions options) => writer.WriteNumberValue(value);
 }
 
-public class CUInt8Converter : CustomRedConverter<CUInt8>
+public class CUInt8Converter : JsonConverter<CUInt8>, ICustomRedConverter
 {
+    public object ReadRedType(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => Read(ref reader, typeToConvert, options);
+
     public override CUInt8 Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => reader.GetByte();
 
-    public override void Write(Utf8JsonWriter writer, CUInt8 value, JsonSerializerOptions options) => 
-        writer.WriteRawValue(((byte)value).ToString(), true);
+    public override void Write(Utf8JsonWriter writer, CUInt8 value, JsonSerializerOptions options) => writer.WriteNumberValue(value);
 }
 
-public class CUInt16Converter : CustomRedConverter<CUInt16>
+public class CUInt16Converter : JsonConverter<CUInt16>, ICustomRedConverter
 {
+    public object ReadRedType(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => Read(ref reader, typeToConvert, options);
+
     public override CUInt16 Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => reader.GetUInt16();
 
-    public override void Write(Utf8JsonWriter writer, CUInt16 value, JsonSerializerOptions options) => 
-        writer.WriteRawValue(((ushort)value).ToString(), true);
+    public override void Write(Utf8JsonWriter writer, CUInt16 value, JsonSerializerOptions options) => writer.WriteNumberValue(value);
 }
 
-public class CUInt32Converter : CustomRedConverter<CUInt32>
+public class CUInt32Converter : JsonConverter<CUInt32>, ICustomRedConverter
 {
+    public object ReadRedType(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => Read(ref reader, typeToConvert, options);
+
     public override CUInt32 Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => reader.GetUInt32();
 
-    public override void Write(Utf8JsonWriter writer, CUInt32 value, JsonSerializerOptions options) => 
-        writer.WriteRawValue(((uint)value).ToString(), true);
+    public override void Write(Utf8JsonWriter writer, CUInt32 value, JsonSerializerOptions options) => writer.WriteNumberValue(value);
 }
 
-public class CUInt64Converter : CustomRedConverter<CUInt64>
+public class CUInt64Converter : JsonConverter<CUInt64>, ICustomRedConverter
 {
-    public override CUInt64 Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
-        JsonSerializer.Deserialize<ulong>(ref reader, options);
+    public object ReadRedType(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => Read(ref reader, typeToConvert, options);
 
-    public override void Write(Utf8JsonWriter writer, CUInt64 value, JsonSerializerOptions options) =>
-        JsonSerializer.Serialize(writer, (ulong)value, options);
+    public override CUInt64 Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => reader.GetUInt64();
+
+    public override void Write(Utf8JsonWriter writer, CUInt64 value, JsonSerializerOptions options) => writer.WriteNumberValue(value);
 }
 
 

@@ -1,9 +1,11 @@
 ﻿using System.Collections.Generic;
 
-namespace WolvenKit.App.Models;
-
-public class ModsInfo
+namespace WolvenKit.Models
 {
-    public List<ModInfoEntry> Mods { get; set; } = new();
+    public class ModsInfo
+    {
+        public List<ModInfoEntry> Mods { get; set; } = new();
+
+    }
 
 }

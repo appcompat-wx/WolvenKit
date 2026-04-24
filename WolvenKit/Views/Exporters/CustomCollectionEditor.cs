@@ -1,13 +1,14 @@
-using System;
-using System.ComponentModel;
+﻿using System;
+using System.Collections;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Data;
-using System.Windows.Input;
 using Syncfusion.Windows.PropertyGrid;
 using WolvenKit.App.ViewModels.Exporters;
+using WolvenKit.Common.Model.Arguments;
 using WolvenKit.Controls;
+using WolvenKit.RED4.Types;
 
 namespace WolvenKit.Views.Exporters;
 
@@ -29,8 +30,6 @@ public class CustomCollectionEditor : ITypeEditor
         _wrappedControl = new CustomCollectionEditorView(_callback, _args);
         return _wrappedControl;
     }
-    public object Create(PropertyDescriptor PropertyDescriptor) => throw new NotImplementedException();
-    public bool ShouldPropertyGridTryToHandleKeyDown(Key key) => true;
 
     public void Attach(PropertyViewItem property, PropertyItem info)
     {

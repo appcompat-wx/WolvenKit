@@ -12,10 +12,9 @@ namespace WolvenKit.Core.Compression
         private static IntPtr s_pOodleLzGetCompressedBufferSizeNeeded = IntPtr.Zero;
         private static IntPtr s_pOodleLzDecompress = IntPtr.Zero;
 
-        private static DecompressDelegate? s_decompress;
-        private static DecompressDelegateUnsafe? s_decompressUnsafe;
-        private static GetCompressedBufferSizeNeededDelegate? s_getCompressedBufferSizeNeeded;
-        private static CompressDelegate? s_compress;
+        private static DecompressDelegate s_decompress;
+        private static GetCompressedBufferSizeNeededDelegate s_getCompressedBufferSizeNeeded;
+        private static CompressDelegate s_compress;
 
         public static bool Load(string oodlepath)
         {
@@ -40,19 +39,10 @@ namespace WolvenKit.Core.Compression
                 return false;
             }
 
-            var decompressPtr = Marshal.GetDelegateForFunctionPointer(
+            s_decompress = (DecompressDelegate)Marshal.GetDelegateForFunctionPointer(
                 s_pOodleLzDecompress,
                 typeof(DecompressDelegate)
             );
-            
-            var decompressPtrUnsafe = Marshal.GetDelegateForFunctionPointer(
-                s_pOodleLzDecompress,
-                typeof(DecompressDelegateUnsafe)
-            );
-
-            s_decompress = (DecompressDelegate)decompressPtr;
-            s_decompressUnsafe = (DecompressDelegateUnsafe)decompressPtrUnsafe;
-            
             s_getCompressedBufferSizeNeeded = (GetCompressedBufferSizeNeededDelegate)Marshal.GetDelegateForFunctionPointer(
                 s_pOodleLzGetCompressedBufferSizeNeeded,
                 typeof(GetCompressedBufferSizeNeededDelegate)
@@ -83,23 +73,6 @@ namespace WolvenKit.Core.Compression
             IntPtr decoderMemory = new(),
             long decoderMemorySize = 0,
             Oodle.ThreadPhase threadModule = Oodle.ThreadPhase.Unthreaded);
-        
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
-        private unsafe delegate int DecompressDelegateUnsafe(
-            byte* compBuf,
-            long compBufSize,
-            byte* rawBuf,
-            long rawLen,
-            Oodle.FuzzSafe fuzzSafe = Oodle.FuzzSafe.Yes,
-            Oodle.CheckCRC checkCRC = Oodle.CheckCRC.No,
-            Oodle.Verbosity verbosity = Oodle.Verbosity.None,
-            IntPtr decBufBase = new(),
-            long decBufSize = 0,
-            IntPtr fpCallback = new(),
-            IntPtr callbackUserData = new(),
-            IntPtr decoderMemory = new(),
-            long decoderMemorySize = 0,
-            Oodle.ThreadPhase threadModule = Oodle.ThreadPhase.Unthreaded);
 
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         private delegate long GetCompressedBufferSizeNeededDelegate(long size);
@@ -119,44 +92,25 @@ namespace WolvenKit.Core.Compression
 
         public static int OodleLZ_Decompress(
             byte[] inputBuffer,
-            byte[] outputBuffer)
-        {
-            ArgumentNullException.ThrowIfNull(s_decompress);
-            return s_decompress(
+            byte[] outputBuffer) =>
+            s_decompress(
                 inputBuffer,
                 inputBuffer.Length,
                 outputBuffer,
                 outputBuffer.Length);
-        }
-        
-        public static unsafe int OodleLZ_Decompress(
-            byte* inputBuffer,
-            long inputLength,
-            byte* outputBuffer,
-            long outputLength)
-        {
-            ArgumentNullException.ThrowIfNull(s_decompress);
-            
-            return s_decompressUnsafe!(
-                inputBuffer,
-                inputLength,
-                outputBuffer,
-                outputLength);
-        }
 
         public static int OodleLZ_Compress(
             byte[] inputBuffer,
             byte[] outputBuffer,
             Compressor compressor = Compressor.Kraken,
-            CompressionLevel level = CompressionLevel.Normal)
-        {
-            ArgumentNullException.ThrowIfNull(s_compress);
-            return s_compress(
+            CompressionLevel level = CompressionLevel.Normal) =>
+            s_compress(
                 compressor,
                 inputBuffer,
                 inputBuffer.Length,
                 outputBuffer,
                 level);
-        }
+
+
     }
 }
